@@ -1,0 +1,11 @@
+{
+  "name": "promed-hub",
+  "private": true,
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "db:apply": "wrangler d1 execute PASTE_YOUR_D1_DATABASE_NAME --remote --file=schema.sql"
+  },
+  "devDependencies": {
+    "wrangler": "latest"
+  }
+}
