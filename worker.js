@@ -318,21 +318,68 @@ function idToInt(uuid) {
 }
 
 async function adminCreateMaterial(request, env) {
-  if (!(await isAdmin(request, env))) return json({message:'Belum login admin.'}, 401);
+  if (!(await isAdmin(request, env))) {
+    return json({ message: 'Belum login admin.' }, 401);
+  }
+
   const form = await request.formData();
   const file = form.get('file');
-  if (!(file instanceof File)) return json({message:'Pilih file materi terlebih dahulu.'},400);
-  const title = String(form.get('title')||'').trim();
-  const course = String(form.get('course')||'').trim();
-  const meeting = String(form.get('meeting')||'').trim();
-  const sourceUrl = String(form.get('source_url')||'').trim();
-  if(!title||!course) return json({message:'Judul dan mata kuliah wajib diisi.'},400);
-  if(Number(request.headers.get('content-length')||0)>25*1024*1024) return json({message:'File terlalu besar (maks 25 MB).'},413);
-  const key=`materials/${crypto.randomUUID()}-${extName(file.name)}`;
-  await env.FILES.put(key,file.stream(),{httpMetadata:{contentType:guessType(file)}});
-  const result=await env.DB.prepare(`INSERT INTO pm_materials(title,course,meeting,source_url,file_key,file_name,content_type,uploaded_at,status) VALUES(?,?,?,?,?,?,?,?,?)`)
-    .bind(title,course,meeting,sourceUrl,key,file.name,guessType(file),now(),'published').run();
-  return json({message:'Materi dipublikasikan untuk seluruh mahasiswa.',id:result.meta.last_row_id});
+
+  if (!(file instanceof File)) {
+    return json({ message: 'Pilih file materi terlebih dahulu.' }, 400);
+  }
+
+  const title = String(form.get('title') || '').trim();
+  const course = String(form.get('course') || '').trim();
+  const meeting = String(form.get('meeting') || '').trim();
+  const sourceUrl = String(form.get('source_url') || '').trim();
+
+  if (!title || !course) {
+    return json({
+      message: 'Judul dan mata kuliah wajib diisi.'
+    }, 400);
+  }
+
+  if (file.size > MAX_FILE_SIZE) {
+    return json({
+      message: 'File terlalu besar. Maksimum 10 MB.'
+    }, 413);
+  }
+
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const key = `materials/${crypto.randomUUID()}-${safeName}`;
+
+  await githubUpload(
+    env,
+    key,
+    file,
+    `Upload materi: ${title}`
+  );
+
+  const result = await env.DB.prepare(`
+    INSERT INTO pm_materials
+    (title, course, meeting, source_url, file_key, file_name,
+     content_type, uploaded_at, status)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `)
+    .bind(
+      title,
+      course,
+      meeting,
+      sourceUrl,
+      key,
+      file.name,
+      file.type || 'application/octet-stream',
+      now(),
+      'published'
+    )
+    .run();
+
+  return json({
+    message: 'Materi berhasil dipublikasikan untuk seluruh mahasiswa.',
+    id: result.meta.last_row_id,
+    file_key: key
+  });
 }
 
 async function adminCreateQuiz(request, env) {
