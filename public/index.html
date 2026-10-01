@@ -172,6 +172,9 @@ async function resetDevice(id){if(!confirm('Reset device mahasiswa ini?'))return
 async function saveSettings(){try{const d=await api('/api/admin/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({max_devices:Number($('maxDevices').value),max_devices_per_student:Number($('maxPerStudent').value)})});$('aDevices').textContent=`${d.device_used} / ${d.max_devices}`;alert('Pengaturan device disimpan.')}catch(e){alert(e.message)}}
 function searchAll(q){q=q.trim().toLowerCase();if(!q){showView('dashboard');return}const arr=[...S.materials.map(x=>({type:'Materi',title:x.title,meta:x.course})),...S.quizzes.map(x=>({type:'Kuis',title:x.title,meta:x.course})),...S.assignments.map(x=>({type:'Tugas',title:x.title,meta:x.course}))].filter(x=>(x.title+' '+x.meta).toLowerCase().includes(q));$('searchLabel').textContent=`${arr.length} hasil untuk “${q}”`;$('searchBox').innerHTML=arr.length?arr.map(x=>item(x.title,x.meta,x.type)).join(''):'<div class="empty">Tidak ada hasil.</div>';showView('searchResults')}
 function openModal(){$('modalBack').classList.add('show')}function closeModal(){$('modalBack').classList.remove('show')}function modalOutside(e){if(e.target===$('modalBack'))closeModal()}
+window.setAuthMode = setAuthMode;
+window.adminLogin = adminLogin;
+window.studentLogin = studentLogin;
 boot();
 </script>
 </body>
