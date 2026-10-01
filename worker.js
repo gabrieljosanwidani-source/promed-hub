@@ -637,7 +637,6 @@ async function serveFile(env, request, type, id) {
   const headers=new Headers();headers.set('Content-Type',row.content_type||'application/octet-stream');headers.set('Content-Disposition',`inline; filename="${safeName(row.file_name)}"`);headers.set('Cache-Control','private, max-age=300');
   return new Response(object.body,{headers});
 }
-
 export default {
   async fetch(request, env, ctx) {
     const url=new URL(request.url);const p=url.pathname;
