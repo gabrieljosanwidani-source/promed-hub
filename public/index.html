@@ -113,13 +113,19 @@ async function adminLogin(e) {
   e.preventDefault();
 
   try {
+    const keyEl = document.getElementById('adminKey');
+
+    if (!keyEl) {
+      throw new Error('Form Admin tidak ditemukan. Silakan muat ulang halaman.');
+    }
+
     const d = await api('/api/admin/login', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        key: $('#adminKey').value
+        key: keyEl.value
       })
     });
 
@@ -128,6 +134,7 @@ async function adminLogin(e) {
     }
 
     await boot();
+
   } catch (e) {
     msg(e.message);
   }
