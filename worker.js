@@ -383,17 +383,68 @@ async function adminCreateMaterial(request, env) {
 }
 
 async function adminCreateQuiz(request, env) {
-  if (!(await isAdmin(request, env))) return json({message:'Belum login admin.'},401);
-  const form=await request.formData();const file=form.get('file');
-  if(!(file instanceof File))return json({message:'Pilih file kuis HTML/JSON terlebih dahulu.'},400);
-  const title=String(form.get('title')||'').trim(),course=String(form.get('course')||'').trim(),meeting=String(form.get('meeting')||'').trim();
-  if(!title||!course)return json({message:'Judul dan mata kuliah wajib diisi.'},400);
-  if(Number(request.headers.get('content-length')||0)>25*1024*1024)return json({message:'File terlalu besar (maks 25 MB).'},413);
-  const key=`quizzes/${crypto.randomUUID()}-${extName(file.name)}`;
-  await env.FILES.put(key,file.stream(),{httpMetadata:{contentType:guessType(file)}});
-  const result=await env.DB.prepare(`INSERT INTO pm_quizzes(title,course,meeting,file_key,file_name,content_type,uploaded_at,status) VALUES(?,?,?,?,?,?,?,?)`)
-    .bind(title,course,meeting,key,file.name,guessType(file),now(),'published').run();
-  return json({message:'Kuis dipublikasikan untuk seluruh mahasiswa.',id:result.meta.last_row_id});
+  if (!(await isAdmin(request, env))) {
+    return json({ message: 'Belum login admin.' }, 401);
+  }
+
+  const form = await request.formData();
+  const file = form.get('file');
+
+  if (!(file instanceof File)) {
+    return json({
+      message: 'Pilih file kuis HTML/JSON terlebih dahulu.'
+    }, 400);
+  }
+
+  const title = String(form.get('title') || '').trim();
+  const course = String(form.get('course') || '').trim();
+  const meeting = String(form.get('meeting') || '').trim();
+
+  if (!title || !course) {
+    return json({
+      message: 'Judul dan mata kuliah wajib diisi.'
+    }, 400);
+  }
+
+  if (file.size > MAX_FILE_SIZE) {
+    return json({
+      message: 'File terlalu besar. Maksimum 10 MB.'
+    }, 413);
+  }
+
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const key = `quizzes/${crypto.randomUUID()}-${safeName}`;
+
+  await githubUpload(
+    env,
+    key,
+    file,
+    `Upload kuis: ${title}`
+  );
+
+  const result = await env.DB.prepare(`
+    INSERT INTO pm_quizzes
+    (title, course, meeting, file_key, file_name,
+     content_type, uploaded_at, status)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `)
+    .bind(
+      title,
+      course,
+      meeting,
+      key,
+      file.name,
+      file.type || 'application/octet-stream',
+      now(),
+      'published'
+    )
+    .run();
+
+  return json({
+    message: 'Kuis berhasil dipublikasikan untuk seluruh mahasiswa.',
+    id: result.meta.last_row_id,
+    file_key: key
+  });
 }
 
 async function adminCreateAssignment(request, env) {
