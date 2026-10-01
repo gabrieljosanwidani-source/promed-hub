@@ -149,6 +149,24 @@ async function githubDelete(env, path) {
     );
   }
 }
+async function githubRead(env, path) {
+  if (!env.GITHUB_TOKEN) {
+    throw new Error('GITHUB_TOKEN belum dipasang di Cloudflare.');
+  }
+
+  const response = await fetch(githubUrl(path), {
+    headers: {
+      ...githubHeaders(env),
+      'Accept': 'application/vnd.github.raw+json'
+    }
+  });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  return response;
+}
 async function getSetting(env, key, fallback) {
   const row = await env.DB.prepare('SELECT value FROM pm_settings WHERE key=?').bind(key).first();
   return row?.value ?? String(fallback);
@@ -264,11 +282,44 @@ async function logoutAdmin(env, request) {
 function userPayload(user) {
   return {id:user.id,npm:user.npm,name:user.name};
 }
+async function openMaterialFile(request, env, id) {
+  const student = await currentStudent(request, env);
+  const admin = await isAdmin(request, env);
 
+  if (!student && !admin) {
+    return json({ message: 'Belum login.' }, 401);
+  }
+
+  const row = await env.DB
+    .prepare(
+      'SELECT file_key,file_name,content_type FROM pm_materials WHERE id=? AND status=?'
+    )
+    .bind(id, 'published')
+    .first();
+
+  if (!row) {
+    return json({ message: 'Materi tidak ditemukan.' }, 404);
+  }
+
+  const response = await githubRead(env, row.file_key);
+
+  if (!response) {
+    return json({ message: 'File materi tidak ditemukan.' }, 404);
+  }
+
+  return new Response(response.body, {
+    status: 200,
+    headers: {
+      'Content-Type': row.content_type || 'application/octet-stream',
+      'Content-Disposition': `inline; filename="${row.file_name.replace(/"/g, '')}"`,
+      'Cache-Control': 'private, no-store'
+    }
+  });
 async function listMaterials(env, request) {
   const user = await currentStudent(request, env);
   if (!user && !(await isAdmin(request, env))) return json({message:'Belum login.'}, 401);
-  const q = await env.DB.prepare(`SELECT id,title,course,meeting,source_url,file_name,content_type,uploaded_at,status FROM pm_materials WHERE status='published' ORDER BY uploaded_at DESC`).all();
+  const q = await env.DB.prepare(`SELECT id,title,course,meeting,source_url,file_key,file_name,content_type,uploaded_at,status
+FROM pm_materials WHERE status='published' ORDER BY uploaded_at DESC`).all();
   return json({items:q.results || []});
 }
 async function listQuizzes(env, request) {
@@ -624,7 +675,16 @@ export default {
       }
       if(request.method==='POST'&&p==='/api/admin/settings')return updateSettings(env,request);
       if(request.method==='GET'&&p==='/api/admin/submissions')return listSubmissions(env,request);
-
+if (
+  request.method === 'GET' &&
+  /^\/api\/materials\/\d+\/file$/.test(path)
+) {
+  return openMaterialFile(
+    request,
+    env,
+    Number(path.split('/')[3])
+  );
+}
       return env.ASSETS.fetch(request);
     } catch (err) {
       console.error(err);
