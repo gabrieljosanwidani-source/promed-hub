@@ -85,10 +85,53 @@ const S={role:null,user:null,materials:[],quizzes:[],assignments:[],submissions:
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
 function msg(t,ok=false){$('authMsg').innerHTML=`<div class="note" style="${ok?'background:#eaf8f3;border-color:#caeee1;color:#197353':'background:#fff1f2;border-color:#f2d0d5;color:#9c2230'}">${esc(t)}</div>`}
-async function api(path,opts={}){const r=await fetch(path,{credentials:'same-origin',...opts});let d={};try{d=await r.json()}catch{}if(!r.ok)throw new Error(d.message||'Permintaan gagal');return d}
+async async function api(path, opts = {}) {
+  const headers = new Headers(opts.headers || {});
+  const adminToken = sessionStorage.getItem('promed_admin_token');
+
+  if (adminToken) {
+    headers.set('Authorization', `Bearer ${adminToken}`);
+  }
+
+  const r = await fetch(path, {
+    credentials: 'same-origin',
+    ...opts,
+    headers
+  });
+
+  const d = await r.json().catch(() => ({}));
+
+  if (!r.ok) {
+    throw new Error(d.message || 'Permintaan gagal');
+  }
+
+  return d;
+}
 function setAuthMode(mode){$('studentTab').classList.toggle('active',mode==='student');$('adminTab').classList.toggle('active',mode==='admin');$('studentLogin').style.display=mode==='student'?'block':'none';$('adminLogin').style.display=mode==='admin'?'block':'none';$('authMsg').innerHTML=''}
 async function studentLogin(e){e.preventDefault();try{const d=await api('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({npm:$('npm').value.trim(),birth_date:$('dob').value})});S.role='student';S.user=d.user;await bootApp()}catch(e){msg(e.message)}}
-async function adminLogin(e){e.preventDefault();try{await api('/api/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:$('adminKey').value})});S.role='admin';await bootApp()}catch(e){msg(e.message)}}
+async function adminLogin(e) {
+  e.preventDefault();
+
+  try {
+    const d = await api('/api/admin/login', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        key: $('#adminKey').value
+      })
+    });
+
+    if (d.admin_token) {
+      sessionStorage.setItem('promed_admin_token', d.admin_token);
+    }
+
+    await boot();
+  } catch (e) {
+    msg(e.message);
+  }
+}
 async function boot(){try{const d=await api('/api/me');if(!d.authenticated)return;S.role=d.role;S.user=d.user||{name:'Administrator',npm:'ADMIN'};await bootApp()}catch{}}
 async function bootApp(){
  $('auth').style.display='none';$('app').style.display='flex';document.body.classList.toggle('admin',S.role==='admin');
