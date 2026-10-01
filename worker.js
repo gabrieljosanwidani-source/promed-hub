@@ -642,8 +642,25 @@ export default {
   async fetch(request, env, ctx) {
     const url=new URL(request.url);const p=url.pathname;
     try {
-      if (p === '/api/test-route') {
+     if (p === '/api/debug-auth') {
+  const student = await currentStudent(request, env);
+  const admin = await isAdmin(request, env);
+
   return json({
+    admin: !!admin,
+    student: !!student,
+    has_admin_cookie: !!cookieValue(request, COOKIE.admin),
+    has_student_cookie: !!cookieValue(request, COOKIE.session)
+  });
+}
+
+if (p === '/api/test-route') {
+  return json({
+    ok: true,
+    route: 'worker aktif',
+    path: p
+  });
+}
     ok: true,
     route: 'worker aktif',
     path: p
