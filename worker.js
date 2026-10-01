@@ -71,10 +71,21 @@ async function currentStudent(request, env) {
   return row;
 }
 async function isAdmin(request, env) {
-  const token = cookieValue(request, COOKIE.admin);
+  const auth = request.headers.get('authorization') || '';
+
+  let token = auth.startsWith('Bearer ')
+    ? auth.slice(7).trim()
+    : cookieValue(request, COOKIE.admin);
+
   if (!token) return false;
+
   const hash = await sha256(token);
-  const row = await env.DB.prepare('SELECT expires_at FROM pm_admin_sessions WHERE token_hash=?').bind(hash).first();
+
+  const row = await env.DB
+    .prepare('SELECT expires_at FROM pm_admin_sessions WHERE token_hash=?')
+    .bind(hash)
+    .first();
+
   return !!row && new Date(row.expires_at).getTime() > Date.now();
 }
 async function requireStudent(request, env) {
@@ -130,7 +141,11 @@ async function loginAdmin(request, env) {
   const hash = await sha256(token);
   const expires = new Date(Date.now() + maxAgeDays(1)).toISOString();
   await env.DB.prepare('INSERT INTO pm_admin_sessions(token_hash,created_at,expires_at) VALUES(?,?,?)').bind(hash, now(), expires).run();
-  return json({message:'Login admin berhasil.'}, 200, { 'Set-Cookie': cookieHeader(COOKIE.admin, token, maxAgeDays(1)) });
+  return json(
+  {message:'Login admin berhasil.', admin_token: token},
+  200,
+  {'Set-Cookie': cookieHeader(COOKIE.admin, token, maxAgeDays(1))}
+);
 }
 
 async function logoutStudent(env, request) {
