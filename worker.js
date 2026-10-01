@@ -315,6 +315,7 @@ async function openMaterialFile(request, env, id) {
       'Cache-Control': 'private, no-store'
     }
   });
+  }
 async function listMaterials(env, request) {
   const user = await currentStudent(request, env);
   if (!user && !(await isAdmin(request, env))) return json({message:'Belum login.'}, 401);
