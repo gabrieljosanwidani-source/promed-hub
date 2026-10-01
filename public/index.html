@@ -85,7 +85,7 @@ const S={role:null,user:null,materials:[],quizzes:[],assignments:[],submissions:
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
 function msg(t,ok=false){$('authMsg').innerHTML=`<div class="note" style="${ok?'background:#eaf8f3;border-color:#caeee1;color:#197353':'background:#fff1f2;border-color:#f2d0d5;color:#9c2230'}">${esc(t)}</div>`}
-async async function api(path, opts = {}) {
+async function api(path, opts = {}) {
   const headers = new Headers(opts.headers || {});
   const adminToken = sessionStorage.getItem('promed_admin_token');
 
