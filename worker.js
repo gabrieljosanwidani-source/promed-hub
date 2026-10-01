@@ -641,6 +641,20 @@ export default {
   async fetch(request, env, ctx) {
     const url=new URL(request.url);const p=url.pathname;
     try {
+      if (
+  request.method === 'GET' &&
+  p.startsWith('/api/materials/') &&
+  p.endsWith('/file')
+) {
+  const parts = p.split('/');
+  const id = Number(parts[3]);
+
+  if (!Number.isInteger(id) || id <= 0) {
+    return json({ message: 'ID materi tidak valid.' }, 400);
+  }
+
+  return openMaterialFile(request, env, id);
+}
       if(p==='/api/health')return json({ok:true,service:'ProMed Hub'});
       if(request.method==='POST'&&p==='/api/login')return loginStudent(request,env);
       if(request.method==='POST'&&p==='/api/admin/login')return loginAdmin(request,env);
