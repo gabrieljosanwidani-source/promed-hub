@@ -633,6 +633,27 @@ async function serveFile(env, request, type, id) {
   if(type==='submission') row=await env.DB.prepare('SELECT file_key,file_name,content_type,student_id FROM pm_submissions WHERE id=?').bind(id).first();
   if(!row)return new Response('Not Found',{status:404});
   if(type==='submission'&&!admin&&row.student_id!==student.id)return new Response('Forbidden',{status:403});
+
+  if (type === 'quiz') {
+  const response = await githubRead(env, row.file_key);
+
+  if (!response) {
+    return new Response('File Not Found', { status: 404 });
+  }
+
+  const headers = new Headers();
+  headers.set(
+    'Content-Type',
+    row.content_type || 'text/html; charset=UTF-8'
+  );
+  headers.set(
+    'Content-Disposition',
+    `inline; filename="${safeName(row.file_name)}"`
+  );
+  headers.set('Cache-Control', 'private, no-store');
+
+  return new Response(response.body, { headers });
+}
   const object=await env.FILES.get(row.file_key);if(!object)return new Response('File Not Found',{status:404});
   const headers=new Headers();headers.set('Content-Type',row.content_type||'application/octet-stream');headers.set('Content-Disposition',`inline; filename="${safeName(row.file_name)}"`);headers.set('Cache-Control','private, max-age=300');
   return new Response(object.body,{headers});
