@@ -480,11 +480,27 @@ async function adminDeleteMaterial(request, env, id) {
   return json({ message: 'Materi dihapus.' });
 }
 async function adminDeleteQuiz(request, env, id) {
-  if(!(await isAdmin(request,env)))return json({message:'Belum login admin.'},401);
-  const row=await env.DB.prepare('SELECT file_key FROM pm_quizzes WHERE id=?').bind(id).first();
-  if(!row)return json({message:'Kuis tidak ditemukan.'},404);
-  await env.FILES.delete(row.file_key);await env.DB.prepare('DELETE FROM pm_quizzes WHERE id=?').bind(id).run();
-  return json({message:'Kuis dihapus.'});
+  if (!(await isAdmin(request, env))) {
+    return json({ message: 'Belum login admin.' }, 401);
+  }
+
+  const row = await env.DB
+    .prepare('SELECT file_key FROM pm_quizzes WHERE id=?')
+    .bind(id)
+    .first();
+
+  if (!row) {
+    return json({ message: 'Kuis tidak ditemukan.' }, 404);
+  }
+
+  await githubDelete(env, row.file_key);
+
+  await env.DB
+    .prepare('DELETE FROM pm_quizzes WHERE id=?')
+    .bind(id)
+    .run();
+
+  return json({ message: 'Kuis dihapus.' });
 }
 async function adminDeleteAssignment(request, env, id) {
   if(!(await isAdmin(request,env)))return json({message:'Belum login admin.'},401);
