@@ -11,14 +11,8 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "PASTE_YOUR_D1_DATABASE_NAME",
-      "database_id": "PASTE_YOUR_D1_DATABASE_ID"
-    }
-  ],
-  "r2_buckets": [
-    {
-      "binding": "FILES",
-      "bucket_name": "PASTE_YOUR_R2_BUCKET_NAME"
+      "database_name": "kuis-database",
+      "database_id": "7b8739bc-286a-480c-8166-75c6491e2864"
     }
   ]
 }
