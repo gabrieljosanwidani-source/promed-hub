@@ -641,6 +641,13 @@ export default {
   async fetch(request, env, ctx) {
     const url=new URL(request.url);const p=url.pathname;
     try {
+      if (p === '/api/test-route') {
+  return json({
+    ok: true,
+    route: 'worker aktif',
+    path: p
+  });
+}
       if (
   request.method === 'GET' &&
   p.startsWith('/api/materials/') &&
