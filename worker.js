@@ -677,14 +677,15 @@ export default {
       if(request.method==='GET'&&p==='/api/admin/submissions')return listSubmissions(env,request);
 if (
   request.method === 'GET' &&
-  /^\/api\/materials\/\d+\/file$/.test(path)
+  /^\/api\/materials\/\d+\/file$/.test(p)
 ) {
   return openMaterialFile(
     request,
     env,
-    Number(path.split('/')[3])
+    Number(p.split('/')[3])
   );
 }
+  
       return env.ASSETS.fetch(request);
     } catch (err) {
       console.error(err);
