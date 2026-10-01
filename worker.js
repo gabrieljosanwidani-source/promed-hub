@@ -48,7 +48,107 @@ async function randomToken(bytes = 32) {
   crypto.getRandomValues(a);
   return [...a].map(x => x.toString(16).padStart(2, '0')).join('');
 }
+const GITHUB_OWNER = 'gabrieljosanwidani-source';
+const GITHUB_REPO = 'promed-files';
+const GITHUB_BRANCH = 'main';
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
+function githubHeaders(env) {
+  return {
+    'Authorization': `Bearer ${env.GITHUB_TOKEN}`,
+    'Accept': 'application/vnd.github+json',
+    'X-GitHub-Api-Version': '2022-11-28',
+    'User-Agent': 'ProMed-Hub'
+  };
+}
+
+function githubPath(path) {
+  return path.split('/').map(encodeURIComponent).join('/');
+}
+
+function githubUrl(path) {
+  return `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${githubPath(path)}`;
+}
+
+function bytesToBase64(bytes) {
+  let binary = '';
+  const chunk = 0x8000;
+
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+
+  return btoa(binary);
+}
+
+async function githubUpload(env, path, file, message) {
+  if (!env.GITHUB_TOKEN) {
+    throw new Error('GITHUB_TOKEN belum dipasang di Cloudflare.');
+  }
+
+  if (file.size > MAX_FILE_SIZE) {
+    throw new Error('File terlalu besar. Maksimum 10 MB per file.');
+  }
+
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const content = bytesToBase64(bytes);
+
+  const response = await fetch(githubUrl(path), {
+    method: 'PUT',
+    headers: {
+      ...githubHeaders(env),
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      message,
+      content,
+      branch: GITHUB_BRANCH
+    })
+  });
+
+  const result = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(
+      result.message || `GitHub upload gagal (${response.status})`
+    );
+  }
+
+  return result;
+}
+
+async function githubDelete(env, path) {
+  const getResponse = await fetch(githubUrl(path), {
+    headers: githubHeaders(env)
+  });
+
+  if (!getResponse.ok) {
+    if (getResponse.status === 404) return;
+    throw new Error('File GitHub tidak ditemukan.');
+  }
+
+  const info = await getResponse.json();
+
+  const response = await fetch(githubUrl(path), {
+    method: 'DELETE',
+    headers: {
+      ...githubHeaders(env),
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      message: `Delete ${path}`,
+      sha: info.sha,
+      branch: GITHUB_BRANCH
+    })
+  });
+
+  if (!response.ok && response.status !== 404) {
+    const result = await response.json().catch(() => ({}));
+    throw new Error(
+      result.message || `GitHub delete gagal (${response.status})`
+    );
+  }
+}
 async function getSetting(env, key, fallback) {
   const row = await env.DB.prepare('SELECT value FROM pm_settings WHERE key=?').bind(key).first();
   return row?.value ?? String(fallback);
