@@ -82,7 +82,7 @@
 <div id="modalBack" class="modalback" onclick="modalOutside(event)"><div class="modal" onclick="event.stopPropagation()"><h3 id="modalTitle">-</h3><p id="modalDesc">-</p><div id="modalBody"></div><div class="modal-actions"><button class="btn soft" onclick="closeModal()">Batal</button><button id="modalSave" class="btn primary">Simpan</button></div></div></div>
 <script>
 const S={role:null,user:null,materials:[],quizzes:[],assignments:[],submissions:[]};
-const $=id=>document.getElementById(id);
+const $ = id => document.getElementById(String(id).replace(/^#/, ''));
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
 function msg(t,ok=false){$('authMsg').innerHTML=`<div class="note" style="${ok?'background:#eaf8f3;border-color:#caeee1;color:#197353':'background:#fff1f2;border-color:#f2d0d5;color:#9c2230'}">${esc(t)}</div>`}
 async function api(path, opts = {}) {
