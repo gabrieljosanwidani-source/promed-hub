@@ -165,7 +165,38 @@ function renderAssignments(){$('assignmentCards').innerHTML=S.assignments.length
 function renderCalendar(){$('calendarCards').innerHTML=S.assignments.length?S.assignments.slice().sort((a,b)=>(a.deadline||'9999').localeCompare(b.deadline||'9999')).map(x=>`<div class="card"><span class="badge blue">${x.deadline?esc(x.deadline):'TBA'}</span><h4 style="margin:12px 0 4px">${esc(x.title)}</h4><p style="margin:0;color:var(--muted);font-size:12px">${esc(x.course)}</p></div>`).join(''):'<div class="card empty">Belum ada agenda.</div>'}
 function renderWorks(){$('worksTable').innerHTML=S.submissions.length?S.submissions.map(x=>`<tr><td><strong>${esc(x.title)}</strong><div class="item-meta">${esc(x.file_name)}</div></td><td>${esc(x.assignment)}</td><td>${new Date(x.uploaded_at).toLocaleString('id-ID')}</td><td><a class="btn soft" href="/api/files/submission/${x.id}" target="_blank">Buka</a></td></tr>`).join(''):'<tr><td colspan="4" class="empty">Belum ada karya yang dikumpulkan.</td></tr>'}
 function openMaterialModal(){$('modalTitle').textContent='Upload Materi';$('modalDesc').textContent='Materi akan langsung dipublikasikan untuk semua mahasiswa setelah disimpan.';$('modalBody').innerHTML=`<div class="field"><label>Judul materi</label><input id="fTitle" placeholder="Contoh: Pertemuan 4 — Media Baru"></div><div class="field"><label>Mata kuliah</label><input id="fCourse" placeholder="Komunikasi Massa"></div><div class="field"><label>Pertemuan</label><input id="fMeeting" placeholder="Pertemuan 4"></div><div class="field"><label>Sumber/link kampus (opsional)</label><input id="fSource" placeholder="https://..."></div><div class="field"><label>File PDF/PPT/DOCX</label><input id="fFile" type="file" accept=".pdf,.ppt,.pptx,.doc,.docx"></div>`;$('modalSave').onclick=saveMaterial;openModal()}
-async function saveMaterial(){const fd=new FormData();fd.set('title',$('fTitle').value);fd.set('course',$('fCourse').value);fd.set('meeting',$('fMeeting').value);fd.set('source_url',$('fSource').value);const f=$('fFile').files[0];if(f)fd.set('file',f);try{await api('/api/admin/materials',{method:'POST',body:fd});closeModal();await loadAll();alert('Materi berhasil dipublikasikan untuk semua mahasiswa.')}catch(e){alert(e.message)}}
+async function saveMaterial() {
+  try {
+    const fd = new FormData();
+
+    fd.set('title', document.getElementById('fTitle').value.trim());
+    fd.set('course', document.getElementById('fCourse').value.trim());
+    fd.set('meeting', document.getElementById('fMeeting').value.trim());
+    fd.set('source_url', document.getElementById('fSource').value.trim());
+
+    const fileInput = document.getElementById('fFile');
+
+    if (!fileInput || !fileInput.files || !fileInput.files[0]) {
+      throw new Error('Pilih file materi terlebih dahulu.');
+    }
+
+    fd.set('file', fileInput.files[0]);
+
+    const result = await api('/api/admin/materials', {
+      method: 'POST',
+      body: fd
+    });
+
+    alert(result.message || 'Materi berhasil dipublikasikan.');
+
+    closeModal();
+    await adminRefresh();
+    showView('materials');
+
+  } catch (e) {
+    alert(e.message || 'Upload materi gagal.');
+  }
+}
 function openQuizModal(){$('modalTitle').textContent='Upload Kuis';$('modalDesc').textContent='Pilih file kuis HTML/JSON yang sudah kamu buat. Semua mahasiswa akan mendapatkan file kuis yang sama.';$('modalBody').innerHTML=`<div class="field"><label>Judul kuis</label><input id="fTitle" placeholder="Kuis Komunikasi Massa Pertemuan 1–3"></div><div class="field"><label>Mata kuliah</label><input id="fCourse" placeholder="Komunikasi Massa"></div><div class="field"><label>Pertemuan</label><input id="fMeeting" placeholder="Pertemuan 1–3"></div><div class="field"><label>File kuis HTML/JSON</label><input id="fFile" type="file" accept=".html,.htm,.json"></div>`;$('modalSave').onclick=saveQuiz;openModal()}
 async function saveQuiz(){const fd=new FormData();fd.set('title',$('fTitle').value);fd.set('course',$('fCourse').value);fd.set('meeting',$('fMeeting').value);const f=$('fFile').files[0];if(f)fd.set('file',f);try{await api('/api/admin/quizzes',{method:'POST',body:fd});closeModal();await loadAll();alert('Kuis berhasil dipublikasikan.')}catch(e){alert(e.message)}}
 function openAssignmentModal(){$('modalTitle').textContent='Buat Tugas';$('modalDesc').textContent='Instruksi tugas akan tampil untuk semua mahasiswa.';$('modalBody').innerHTML=`<div class="field"><label>Judul tugas</label><input id="fTitle" placeholder="Analisis Representasi Gender"></div><div class="field"><label>Mata kuliah</label><input id="fCourse" placeholder="Media, Gender & Representasi"></div><div class="field"><label>Deadline</label><input id="fDeadline" type="date"></div><div class="field"><label>Instruksi</label><textarea id="fInstructions" placeholder="Tuliskan instruksi tugas..."></textarea></div>`;$('modalSave').onclick=saveAssignment;openModal()}
