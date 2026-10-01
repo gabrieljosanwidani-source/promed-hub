@@ -300,7 +300,7 @@ async function getAdminSummary(env, request) {
     env.DB.prepare('SELECT COUNT(*) AS c FROM pm_devices WHERE active=1').first(),
     env.DB.prepare('SELECT COUNT(*) AS c FROM pm_materials').first(),
     env.DB.prepare('SELECT COUNT(*) AS c FROM pm_quizzes').first(),
-    env.DB.prepare('SELECT COUNT(*) AS c FROM pm_assignments WHERE status='active'').first(),
+    env.DB.prepare("SELECT COUNT(*) AS c FROM pm_assignments WHERE status='active'").first(),
     env.DB.prepare('SELECT COUNT(*) AS c FROM pm_submissions').first()
   ]);
   return json({max_devices:maxDevices,max_devices_per_student:perStudent,device_used:Number(d?.c||0),materials:Number(m?.c||0),quizzes:Number(q?.c||0),assignments:Number(a?.c||0),submissions:Number(s?.c||0)});
@@ -320,7 +320,7 @@ async function submitWork(env,request) {
   const student=await currentStudent(request,env);if(!student)return json({message:'Belum login mahasiswa.'},401);
   const form=await request.formData();const assignmentId=Number(form.get('assignment_id'));const title=String(form.get('title')||'').trim();const file=form.get('file');
   if(!assignmentId||!(file instanceof File))return json({message:'Tugas dan file wajib diisi.'},400);
-  const assignment=await env.DB.prepare('SELECT id,title FROM pm_assignments WHERE id=? AND status='active'').bind(assignmentId).first();if(!assignment)return json({message:'Tugas tidak ditemukan.'},404);
+  const assignment=await env.DB.prepare("SELECT id,title FROM pm_assignments WHERE id=? AND status='active'").bind(assignmentId).first();if(!assignment)return json({message:'Tugas tidak ditemukan.'},404);
   if(Number(request.headers.get('content-length')||0)>25*1024*1024)return json({message:'File terlalu besar (maks 25 MB).'},413);
   const key=`submissions/${student.id}/${crypto.randomUUID()}-${extName(file.name)}`;
   await env.FILES.put(key,file.stream(),{httpMetadata:{contentType:guessType(file)}});
