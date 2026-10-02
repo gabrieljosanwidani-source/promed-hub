@@ -534,6 +534,78 @@ async function adminCreateQuiz(request, env) {
   });
 }
 
+async function adminCreateTemplate(request, env) {
+  if (!(await isAdmin(request, env))) {
+    return json({ message: 'Belum login admin.' }, 401);
+  }
+
+  const form = await request.formData();
+  const file = form.get('file');
+
+  if (!(file instanceof File)) {
+    return json({ message: 'Pilih file template terlebih dahulu.' }, 400);
+  }
+
+  const title = String(form.get('title') || '').trim();
+  const courseId = Number(form.get('course_id'));
+  const description = String(form.get('description') || '').trim();
+
+  if (!title || !Number.isInteger(courseId) || courseId <= 0) {
+    return json({
+      message: 'Judul dan mata kuliah wajib diisi.'
+    }, 400);
+  }
+
+  const course = await env.DB
+    .prepare("SELECT id FROM pm_courses WHERE id=? AND status='active'")
+    .bind(courseId)
+    .first();
+
+  if (!course) {
+    return json({ message: 'Mata kuliah tidak ditemukan.' }, 404);
+  }
+
+  if (file.size > MAX_FILE_SIZE) {
+    return json({
+      message: 'File terlalu besar. Maksimum 10 MB.'
+    }, 413);
+  }
+
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const key = `templates/${crypto.randomUUID()}-${safeName}`;
+
+  await githubUpload(
+    env,
+    key,
+    file,
+    `Upload template: ${title}`
+  );
+
+  const result = await env.DB.prepare(`
+    INSERT INTO pm_templates
+    (course_id, title, description, file_key, file_name,
+     content_type, uploaded_at, status)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `)
+    .bind(
+      courseId,
+      title,
+      description,
+      key,
+      file.name,
+      file.type || 'application/octet-stream',
+      now(),
+      'published'
+    )
+    .run();
+
+  return json({
+    message: 'Template berhasil dipublikasikan.',
+    id: result.meta.last_row_id,
+    file_key: key
+  });
+}
+
 async function adminCreateAssignment(request, env) {
   if(!(await isAdmin(request,env)))return json({message:'Belum login admin.'},401);
   const data=await request.json().catch(()=>({}));
@@ -740,6 +812,7 @@ export default {
       if(request.method==='POST'&&p==='/api/admin/assignments')return adminCreateAssignment(request,env);
       if(request.method==='DELETE'&&/^\/api\/admin\/materials\/\d+$/.test(p))return adminDeleteMaterial(request,env,Number(p.split('/').pop()));
       if(request.method==='DELETE'&&/^\/api\/admin\/quizzes\/\d+$/.test(p))return adminDeleteQuiz(request,env,Number(p.split('/').pop()));
+      if(request.method==='POST'&&p==='/api/admin/templates')return adminCreateTemplate(request,env);
       if(request.method==='DELETE'&&/^\/api\/admin\/assignments\/\d+$/.test(p))return adminDeleteAssignment(request,env,Number(p.split('/').pop()));
       if(request.method==='GET'&&p==='/api/admin/settings'){
         if(!(await isAdmin(request,env)))return json({message:'Belum login admin.'},401);
