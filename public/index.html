@@ -54,6 +54,37 @@
     <section id="dashboard" class="view active content">
       <div class="hero"><div class="hero-row"><div><h2>Ruang belajar digital ProMed.</h2><p>Admin mengunggah materi dan kuis satu kali. Semua mahasiswa melihat konten yang sama. Karya tugas tetap tersimpan sebagai pengumpulan pribadi masing-masing mahasiswa.</p></div><div class="actions"><button class="btn white" onclick="showView('materials')">Lihat Materi</button><button class="btn" style="background:rgba(255,255,255,.14);color:#fff;border:1px solid rgba(255,255,255,.2)" onclick="showView('quizzes')">Buka Kuis</button></div></div></div>
       <div class="grid stats"><div class="card stat"><div><p>Materi</p><strong id="statM">0</strong></div><div class="ico">▣</div></div><div class="card stat"><div><p>Kuis</p><strong id="statQ">0</strong></div><div class="ico">✓</div></div><div class="card stat"><div><p>Tugas</p><strong id="statA">0</strong></div><div class="ico">▤</div></div><div class="card stat"><div><p>Device terdaftar</p><strong id="statD">—</strong></div><div class="ico">◎</div></div></div>
+      <div class="card" style="margin-top:18px">
+  <div class="section-head">
+    <div>
+      <h3>Mata Kuliah</h3>
+      <p>Pilih mata kuliah berdasarkan semester atau cari namanya.</p>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <input
+      id="courseSearch"
+      type="text"
+      placeholder="🔍 Cari mata kuliah..."
+      oninput="renderCourses()"
+    >
+
+    <select id="courseSemester" onchange="renderCourses()">
+      <option value="">Semua Semester</option>
+      <option value="1">Semester 1</option>
+      <option value="2">Semester 2</option>
+      <option value="3">Semester 3</option>
+      <option value="4">Semester 4</option>
+      <option value="5">Semester 5</option>
+      <option value="6">Semester 6</option>
+      <option value="7">Semester 7</option>
+      <option value="8">Semester 8</option>
+    </select>
+  </div>
+
+  <div class="grid cols3" id="courseList"></div>
+</div>
       <div class="grid cols3"><div class="card"><div class="section-head"><div><h3>Materi terbaru</h3><p>Upload manual oleh admin</p></div><button class="btn soft" onclick="showView('materials')">Buka</button></div><div id="recentM"></div></div><div class="card"><div class="section-head"><div><h3>Kuis terbaru</h3><p>Latihan bersama</p></div><button class="btn soft" onclick="showView('quizzes')">Buka</button></div><div id="recentQ"></div></div><div class="card"><div class="section-head"><div><h3>Deadline terdekat</h3><p>Tugas aktif</p></div><button class="btn soft" onclick="showView('assignments')">Buka</button></div><div id="recentA"></div></div></div>
       <div class="footer">Dibangun untuk ProMed • <b>Josan x ProMed</b></div>
     </section>
@@ -81,7 +112,15 @@
 
 <div id="modalBack" class="modalback" onclick="modalOutside(event)"><div class="modal" onclick="event.stopPropagation()"><h3 id="modalTitle">-</h3><p id="modalDesc">-</p><div id="modalBody"></div><div class="modal-actions"><button class="btn soft" onclick="closeModal()">Batal</button><button id="modalSave" class="btn primary">Simpan</button></div></div></div>
 <script>
-const S={role:null,user:null,materials:[],quizzes:[],assignments:[],submissions:[]};
+const S={
+  role:null,
+  user:null,
+  courses:[],
+  materials:[],
+  quizzes:[],
+  assignments:[],
+  submissions:[]
+};
 const $ = id => document.getElementById(String(id).replace(/^#/, ''));
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
 function msg(t,ok=false){$('authMsg').innerHTML=`<div class="note" style="${ok?'background:#eaf8f3;border-color:#caeee1;color:#197353':'background:#fff1f2;border-color:#f2d0d5;color:#9c2230'}">${esc(t)}</div>`}
@@ -147,7 +186,23 @@ async function bootApp(){
  await loadAll();showView('dashboard');
 }
 async function logout(){await api(S.role==='admin'?'/api/admin/logout':'/api/logout',{method:'POST'}).catch(()=>{});location.reload()}
-async function loadAll(){const [m,q,a,s]=await Promise.all([api('/api/materials'),api('/api/quizzes'),api('/api/assignments'),api('/api/submissions')]);S.materials=m.items;S.quizzes=q.items;S.assignments=a.items;S.submissions=s.items;renderAll()}
+async function loadAll(){
+  const [c,m,q,a,s]=await Promise.all([
+    api('/api/courses'),
+    api('/api/materials'),
+    api('/api/quizzes'),
+    api('/api/assignments'),
+    api('/api/submissions')
+  ]);
+
+  S.courses=c.items;
+  S.materials=m.items;
+  S.quizzes=q.items;
+  S.assignments=a.items;
+  S.submissions=s.items;
+
+  renderAll();
+}
 function showView(id){document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));$(id).classList.add('active');document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===id));$('sidebar').classList.remove('open');window.scrollTo({top:0,behavior:'smooth'})}
 document.querySelectorAll('.nav button').forEach(b=>b.addEventListener('click',()=>showView(b.dataset.view)));function toggleSide(){$('sidebar').classList.toggle('open')}
 function item(title,meta,badge){return `<div class="item"><div class="item-left"><div class="fileico">•</div><div><div class="item-title">${esc(title)}</div><div class="item-meta">${esc(meta)}</div></div></div><span class="badge">${esc(badge)}</span></div>`}
@@ -156,7 +211,28 @@ function renderAll(){
  $('recentM').innerHTML=S.materials.slice(0,3).map(x=>item(x.title,x.course,x.meeting||'Materi')).join('')||'<div class="empty">Belum ada materi.</div>';
  $('recentQ').innerHTML=S.quizzes.slice(0,3).map(x=>item(x.title,x.course,x.meeting||'Kuis')).join('')||'<div class="empty">Belum ada kuis.</div>';
  $('recentA').innerHTML=S.assignments.slice(0,3).map(x=>item(x.title,x.deadline||'Tanpa deadline',x.course)).join('')||'<div class="empty">Belum ada tugas.</div>';
- renderMaterials();renderQuizzes();renderAssignments();renderCalendar();renderWorks();
+ renderCourses(),renderMaterials(),renderQuizzes(),renderAssignments(),renderCalendar(),renderWorks();
+}
+  function renderCourses(){
+  const q = ($('courseSearch').value || '').trim().toLowerCase();
+  const sem = $('courseSemester').value;
+
+  const arr = S.courses.filter(x =>
+    (!q || x.name.toLowerCase().includes(q)) &&
+    (!sem || String(x.semester) === sem)
+  );
+
+  $('courseList').innerHTML = arr.length
+    ? arr.map(x => `
+        <div class="card">
+          <span class="badge blue">SEMESTER ${x.semester}</span>
+          <h4 style="margin:12px 0 5px">${esc(x.name)}</h4>
+          <p style="margin:0;color:var(--muted);font-size:12px">
+            ${esc(x.lecturer || 'Dosen belum ditambahkan')}
+          </p>
+        </div>
+      `).join('')
+    : '<div class="card empty">Mata kuliah tidak ditemukan.</div>';
 }
 function populateCourses(){const select=$('matCourse');const cur=select.value;const set=[...new Set(S.materials.map(x=>x.course).filter(Boolean))];select.innerHTML='<option value="">Semua mata kuliah</option>'+set.map(x=>`<option>${esc(x)}</option>`).join('');select.value=cur}
 function renderMaterials(){populateCourses();const q=($('matSearch').value||'').toLowerCase();const c=$('matCourse').value;const arr=S.materials.filter(x=>(!q||[x.title,x.course,x.meeting].join(' ').toLowerCase().includes(q))&&(!c||x.course===c));$('materialsTable').innerHTML=arr.length?arr.map(x=>`<tr><td><strong>${esc(x.title)}</strong></td><td>${esc(x.course)}</td><td>${esc(x.meeting||'-')}</td><td>${new Date(x.uploaded_at).toLocaleDateString('id-ID')}</td><td><a class="btn soft" href="/api/materials/${x.id}/file">Buka</a> ${S.role==='admin'?`<button class="btn danger" onclick="del('material',${x.id})">Hapus</button>`:''}</td></tr>`).join(''):'<tr><td colspan="5" class="empty">Belum ada materi.</td></tr>'}
