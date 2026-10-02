@@ -148,6 +148,18 @@
     <section id="admin" class="view content"><div class="section-head"><div><h3>Admin Panel</h3><p>Kelola materi, kuis, tugas, mahasiswa, device, dan pengumpulan.</p></div><button class="btn soft" onclick="adminRefresh()">↻ Refresh</button></div><div class="grid stats"><div class="card stat"><div><p>Mahasiswa</p><strong id="aStudents">0</strong></div><div class="ico">◎</div></div><div class="card stat"><div><p>Device aktif</p><strong id="aDevices">0 / 45</strong></div><div class="ico">▣</div></div><div class="card stat"><div><p>Pengumpulan</p><strong id="aSubs">0</strong></div><div class="ico">↥</div></div><div class="card stat"><div><p>Status</p><strong style="font-size:18px;color:var(--ok)">Aktif</strong></div><div class="ico">●</div></div></div>
       <div class="grid cols2"><div class="card"><div class="section-head"><div><h3>Pengaturan Device</h3><p>Contoh: ubah 45 → 60 tanpa edit kode.</p></div></div><div class="field"><label>Total device yang diizinkan</label><input id="maxDevices" type="number" min="1"></div><div class="field"><label>Maksimum device per mahasiswa</label><input id="maxPerStudent" type="number" min="1" max="10"></div><button class="btn primary" onclick="saveSettings()">Simpan Pengaturan</button></div>
       <div class="card"><div class="section-head"><div><h3>Tambah Mahasiswa</h3><p>Admin memasukkan NPM dan tanggal lahir untuk verifikasi login.</p></div></div><div class="field"><label>Nama</label><input id="newName" placeholder="Nama mahasiswa"></div><div class="field"><label>NPM</label><input id="newNpm" inputmode="numeric" placeholder="26758023"></div><div class="field"><label>Tanggal lahir</label><input id="newDob" type="date"></div><button class="btn primary" onclick="addStudent()">Tambah Mahasiswa</button></div></div>
+      <div class="card" style="margin-top:15px">
+  <div class="section-head">
+    <div>
+      <h3>Upload Template</h3>
+      <p>Upload template makalah, PPT, laporan, atau file pendukung lainnya.</p>
+    </div>
+  </div>
+
+  <button class="btn primary" onclick="openTemplateModal()">
+    + Tambah Template
+  </button>
+</div>
       <div class="card" style="margin-top:15px"><div class="section-head"><div><h3>Daftar Mahasiswa</h3><p>Reset device digunakan ketika mahasiswa perlu berpindah perangkat.</p></div></div><div class="table-wrap"><table class="table"><thead><tr><th>Nama</th><th>NPM</th><th>Device</th><th>Status</th><th>Aksi</th></tr></thead><tbody id="studentsTable"></tbody></table></div></div>
       <div class="card" style="margin-top:15px"><div class="section-head"><div><h3>Semua Pengumpulan</h3><p>Admin dapat melihat seluruh karya mahasiswa.</p></div></div><div class="table-wrap"><table class="table"><thead><tr><th>Mahasiswa</th><th>NPM</th><th>Tugas</th><th>Karya</th><th>Waktu</th><th>Aksi</th></tr></thead><tbody id="adminSubs"></tbody></table></div></div>
     </section>
@@ -466,6 +478,72 @@ function renderAssignments(){
 }
 function renderCalendar(){$('calendarCards').innerHTML=S.assignments.length?S.assignments.slice().sort((a,b)=>(a.deadline||'9999').localeCompare(b.deadline||'9999')).map(x=>`<div class="card"><span class="badge blue">${x.deadline?esc(x.deadline):'TBA'}</span><h4 style="margin:12px 0 4px">${esc(x.title)}</h4><p style="margin:0;color:var(--muted);font-size:12px">${esc(x.course)}</p></div>`).join(''):'<div class="card empty">Belum ada agenda.</div>'}
 function renderWorks(){$('worksTable').innerHTML=S.submissions.length?S.submissions.map(x=>`<tr><td><strong>${esc(x.title)}</strong><div class="item-meta">${esc(x.file_name)}</div></td><td>${esc(x.assignment)}</td><td>${new Date(x.uploaded_at).toLocaleString('id-ID')}</td><td><a class="btn soft" href="/api/files/submission/${x.id}" target="_blank">Buka</a></td></tr>`).join(''):'<tr><td colspan="4" class="empty">Belum ada karya yang dikumpulkan.</td></tr>'}
+  function openTemplateModal(){
+  $('modalTitle').textContent = 'Upload Template';
+  $('modalDesc').textContent = 'Template akan tersedia untuk mahasiswa sesuai mata kuliah yang dipilih.';
+
+  $('modalBody').innerHTML = `
+    <div class="field">
+      <label>Judul Template</label>
+      <input id="tTitle" placeholder="Contoh: Template Makalah">
+    </div>
+
+    <div class="field">
+      <label>Mata Kuliah</label>
+      <select id="tCourse">
+        <option value="">Pilih mata kuliah</option>
+        ${S.courses.map(x =>
+          `<option value="${x.id}">${esc(x.name)}</option>`
+        ).join('')}
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Deskripsi</label>
+      <textarea id="tDescription" placeholder="Deskripsi template"></textarea>
+    </div>
+
+    <div class="field">
+      <label>File Template</label>
+      <input
+        id="tFile"
+        type="file"
+        accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx"
+      >
+    </div>
+  `;
+
+  $('modalSave').onclick = saveTemplate;
+  openModal();
+}
+
+async function saveTemplate(){
+  try{
+    const fileInput = $('tFile');
+
+    if(!fileInput || !fileInput.files || !fileInput.files[0]){
+      throw new Error('Pilih file template terlebih dahulu.');
+    }
+
+    const fd = new FormData();
+
+    fd.set('title', $('tTitle').value.trim());
+    fd.set('course_id', $('tCourse').value);
+    fd.set('description', $('tDescription').value.trim());
+    fd.set('file', fileInput.files[0]);
+
+    const result = await api('/api/admin/templates',{
+      method:'POST',
+      body:fd
+    });
+
+    closeModal();
+    await loadAll();
+    alert(result.message || 'Template berhasil dipublikasikan.');
+  }catch(e){
+    alert(e.message || 'Upload template gagal.');
+  }
+}
 function openMaterialModal(){$('modalTitle').textContent='Upload Materi';$('modalDesc').textContent='Materi akan langsung dipublikasikan untuk semua mahasiswa setelah disimpan.';$('modalBody').innerHTML=`<div class="field"><label>Judul materi</label><input id="fTitle" placeholder="Contoh: Pertemuan 4 — Media Baru"></div><div class="field"><label>Mata kuliah</label><input id="fCourse" placeholder="Komunikasi Massa"></div><div class="field"><label>Pertemuan</label><input id="fMeeting" placeholder="Pertemuan 4"></div><div class="field"><label>Sumber/link kampus (opsional)</label><input id="fSource" placeholder="https://..."></div><div class="field"><label>File PDF/PPT/DOCX</label><input id="fFile" type="file" accept=".pdf,.ppt,.pptx,.doc,.docx"></div>`;$('modalSave').onclick=saveMaterial;openModal()}
 async function saveMaterial() {
   try {
