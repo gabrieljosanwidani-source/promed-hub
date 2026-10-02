@@ -87,7 +87,45 @@
       <div class="grid cols3"><div class="card"><div class="section-head"><div><h3>Materi terbaru</h3><p>Upload manual oleh admin</p></div><button class="btn soft" onclick="showView('materials')">Buka</button></div><div id="recentM"></div></div><div class="card"><div class="section-head"><div><h3>Kuis terbaru</h3><p>Latihan bersama</p></div><button class="btn soft" onclick="showView('quizzes')">Buka</button></div><div id="recentQ"></div></div>
       <div class="footer">Dibangun untuk ProMed • <b>Josan x ProMed</b></div>
     </section>
+<section id="courseDetail" class="view content">
+  <div class="section-head">
+    <div>
+      <button class="btn soft" onclick="showView('dashboard')">← Kembali</button>
+      <h3 id="courseDetailName" style="margin-top:14px">Mata Kuliah</h3>
+      <p id="courseDetailLecturer">Dosen: Belum ditambahkan</p>
+    </div>
+  </div>
 
+  <div class="grid cols3" style="margin-top:18px">
+    <div class="card">
+      <div class="fileico">📖</div>
+      <h3>Materi</h3>
+      <p>Lihat materi untuk mata kuliah ini.</p>
+      <button class="btn soft" onclick="showView('materials')">Buka Materi</button>
+    </div>
+
+    <div class="card">
+      <div class="fileico">📝</div>
+      <h3>Kuis</h3>
+      <p>Kerjakan kuis mata kuliah ini.</p>
+      <button class="btn soft" onclick="showView('quizzes')">Buka Kuis</button>
+    </div>
+
+    <div class="card">
+      <div class="fileico">📋</div>
+      <h3>Tugas</h3>
+      <p>Lihat tugas yang tersedia.</p>
+      <button class="btn soft" onclick="showView('assignments')">Buka Tugas</button>
+    </div>
+
+    <div class="card">
+      <div class="fileico">📄</div>
+      <h3>Template</h3>
+      <p>Template makalah, PPT, laporan, dan lainnya.</p>
+      <button class="btn soft">Buka Template</button>
+    </div>
+  </div>
+</section>
     <section id="materials" class="view content"><div class="section-head"><div><h3>Materi Pembelajaran</h3><p>Materi yang dipublikasikan admin tersedia untuk seluruh mahasiswa.</p></div><button class="btn primary admin-only" onclick="openMaterialModal()">+ Tambah Materi</button></div><div class="toolbar"><input id="matSearch" placeholder="Cari materi..." oninput="renderMaterials()"><select id="matCourse" onchange="renderMaterials()"><option value="">Semua mata kuliah</option></select></div><div class="card table-wrap"><table class="table"><thead><tr><th>Materi</th><th>Mata Kuliah</th><th>Pertemuan</th><th>Upload</th><th>Aksi</th></tr></thead><tbody id="materialsTable"></tbody></table></div></section>
 
     <section id="quizzes" class="view content"><div class="section-head"><div><h3>Kuis & Latihan</h3><p>Kuis yang admin publikasikan otomatis tersedia di semua perangkat yang sudah login.</p></div><button class="btn primary admin-only" onclick="openQuizModal()">+ Upload Kuis</button></div><div class="grid cols3" id="quizCards"></div></section>
@@ -222,16 +260,32 @@ function renderAll(){
 
   $('courseList').innerHTML = arr.length
     ? arr.map(x => `
-        <div class="card">
-          <span class="badge blue">SEMESTER ${x.semester}</span>
-          <h4 style="margin:12px 0 5px">${esc(x.name)}</h4>
-          <p style="margin:0;color:var(--muted);font-size:12px">
-            ${esc(x.lecturer || 'Dosen belum ditambahkan')}
-          </p>
-        </div>
+        <div class="card" style="cursor:pointer" onclick="openCourse(${x.id})">
+  <span class="badge blue">SEMESTER ${x.semester}</span>
+  <h4 style="margin:12px 0 5px">${esc(x.name)}</h4>
+  <p style="margin:0;color:var(--muted);font-size:12px">
+    ${esc(x.lecturer || 'Dosen belum ditambahkan')}
+  </p>
+</div>
       `).join('')
     : '<div class="card empty">Mata kuliah tidak ditemukan.</div>';
 }
+
+function openCourse(id){
+  const course = S.courses.find(x => Number(x.id) === Number(id));
+
+  if(!course){
+    alert('Mata kuliah tidak ditemukan.');
+    return;
+  }
+
+  $('courseDetailName').textContent = course.name;
+  $('courseDetailLecturer').textContent =
+    `Dosen: ${course.lecturer || 'Belum ditambahkan'}`;
+
+  showView('courseDetail');
+}
+
 function populateCourses(){const select=$('matCourse');const cur=select.value;const set=[...new Set(S.materials.map(x=>x.course).filter(Boolean))];select.innerHTML='<option value="">Semua mata kuliah</option>'+set.map(x=>`<option>${esc(x)}</option>`).join('');select.value=cur}
 function renderMaterials(){populateCourses();const q=($('matSearch').value||'').toLowerCase();const c=$('matCourse').value;const arr=S.materials.filter(x=>(!q||[x.title,x.course,x.meeting].join(' ').toLowerCase().includes(q))&&(!c||x.course===c));$('materialsTable').innerHTML=arr.length?arr.map(x=>`<tr><td><strong>${esc(x.title)}</strong></td><td>${esc(x.course)}</td><td>${esc(x.meeting||'-')}</td><td>${new Date(x.uploaded_at).toLocaleDateString('id-ID')}</td><td><a class="btn soft" href="/api/materials/${x.id}/file">Buka</a> ${S.role==='admin'?`<button class="btn danger" onclick="del('material',${x.id})">Hapus</button>`:''}</td></tr>`).join(''):'<tr><td colspan="5" class="empty">Belum ada materi.</td></tr>'}
 function renderQuizzes(){$('quizCards').innerHTML=S.quizzes.length?S.quizzes.map(x=>`<div class="card quizcard"><span class="badge green">DIPUBLIKASIKAN</span><h4>${esc(x.title)}</h4><p>${esc(x.course)}${x.meeting?' • '+esc(x.meeting):''}</p><a class="btn primary" href="/api/files/quiz/${x.id}" target="_blank">Buka Kuis</a>${S.role==='admin'?` <button class="btn danger" onclick="del('quiz',${x.id})">Hapus</button>`:''}</div>`).join(''):'<div class="card empty">Belum ada kuis.</div>'}
