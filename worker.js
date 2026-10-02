@@ -282,6 +282,46 @@ async function logoutAdmin(env, request) {
 function userPayload(user) {
   return {id:user.id,npm:user.npm,name:user.name};
 }
+async function openMaterialFile(request, env, id) {
+  const student = await currentStudent(request, env);
+  const admin = await isAdmin(request, env);
+
+  if (!student && !admin) {
+    return new Response('Unauthorized', { status: 401 });
+  }
+
+  const row = await env.DB
+    .prepare(`
+      SELECT file_key, file_name, content_type
+      FROM pm_materials
+      WHERE id=? AND status='published'
+    `)
+    .bind(id)
+    .first();
+
+  if (!row) {
+    return new Response('Materi tidak ditemukan', { status: 404 });
+  }
+
+  if (!row.file_key) {
+    return new Response('File materi belum tersedia', { status: 404 });
+  }
+
+  const response = await githubRead(env, row.file_key);
+
+  if (!response) {
+    return new Response('File materi tidak ditemukan', { status: 404 });
+  }
+
+  return new Response(response.body, {
+    status: 200,
+    headers: {
+      'Content-Type': row.content_type || 'application/octet-stream',
+      'Content-Disposition': `inline; filename="${safeName(row.file_name)}"`,
+      'Cache-Control': 'private, no-store'
+    }
+  });
+}
 async function openTemplateFile(request, env, id) {
   const student = await currentStudent(request, env);
   const admin = await isAdmin(request, env);
