@@ -335,7 +335,23 @@ async function listAssignments(env, request) {
   const q = await env.DB.prepare(`SELECT id,title,course,course_id,instructions,deadline,created_at,status FROM pm_assignments WHERE status='active' ORDER BY CASE WHEN deadline IS NULL OR deadline='' THEN 1 ELSE 0 END, deadline`).all();
   return json({items:q.results || []});
 }
-async function listCourses(env, request) {
+async function listTemplates(env, request) {
+  const user = await currentStudent(request, env);
+
+  if (!user && !(await isAdmin(request, env))) {
+    return json({message:'Belum login.'}, 401);
+  }
+
+  const q = await env.DB.prepare(`
+    SELECT id,course_id,title,description,file_key,file_name,
+           content_type,uploaded_at,status
+    FROM pm_templates
+    WHERE status='published'
+    ORDER BY uploaded_at DESC
+  `).all();
+
+  return json({items:q.results || []});
+}
   const user = await currentStudent(request, env);
   const admin = await isAdmin(request, env);
 
@@ -707,6 +723,7 @@ export default {
       if(request.method==='GET'&&p==='/api/materials')return listMaterials(env,request);
       if(request.method==='GET'&&p==='/api/quizzes')return listQuizzes(env,request);
       if(request.method==='GET'&&p==='/api/assignments')return listAssignments(env,request);
+      if(request.method==='GET'&&p==='/api/templates')return listTemplates(env,request);
       if(request.method==='GET'&&p==='/api/courses')return listCourses(env,request);
       if(request.method==='GET'&&p==='/api/submissions')return listSubmissions(env,request);
       if(request.method==='POST'&&p==='/api/submissions')return submitWork(env,request);
