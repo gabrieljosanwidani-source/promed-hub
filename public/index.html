@@ -101,21 +101,21 @@
       <div class="fileico">📖</div>
       <h3>Materi</h3>
       <p>Lihat materi untuk mata kuliah ini.</p>
-      <button class="btn soft" onclick="showView('materials')">Buka Materi</button>
+      <button class="btn soft" onclick="openCourseSection('materials')">Buka Materi</button>
     </div>
 
     <div class="card">
       <div class="fileico">📝</div>
       <h3>Kuis</h3>
       <p>Kerjakan kuis mata kuliah ini.</p>
-      <button class="btn soft" onclick="showView('quizzes')">Buka Kuis</button>
+      <button class="btn soft" onclick="openCourseSection('quizzes')">Buka Kuis</button>
     </div>
 
     <div class="card">
       <div class="fileico">📋</div>
       <h3>Tugas</h3>
       <p>Lihat tugas yang tersedia.</p>
-      <button class="btn soft" onclick="showView('assignments')">Buka Tugas</button>
+      <button class="btn soft" onclick="openCourseSection('assignments')">Buka Tugas</button>
     </div>
 
     <div class="card">
@@ -153,6 +153,7 @@ const S={
   role:null,
   user:null,
   courses:[],
+  selectedCourse:null,
   materials:[],
   quizzes:[],
   assignments:[],
@@ -240,7 +241,21 @@ async function loadAll(){
 
   renderAll();
 }
-function showView(id){document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));$(id).classList.add('active');document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===id));$('sidebar').classList.remove('open');window.scrollTo({top:0,behavior:'smooth'})}
+function showView(id, preserveCourse=false){
+  if(!preserveCourse){
+    S.selectedCourse = null;
+  }
+
+  document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
+  $(id).classList.add('active');
+
+  document.querySelectorAll('.nav button').forEach(b =>
+    b.classList.toggle('active', b.dataset.view === id)
+  );
+
+  $('sidebar').classList.remove('open');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
 document.querySelectorAll('.nav button').forEach(b=>b.addEventListener('click',()=>showView(b.dataset.view)));function toggleSide(){$('sidebar').classList.toggle('open')}
 function item(title,meta,badge){return `<div class="item"><div class="item-left"><div class="fileico">•</div><div><div class="item-title">${esc(title)}</div><div class="item-meta">${esc(meta)}</div></div></div><span class="badge">${esc(badge)}</span></div>`}
 function renderAll(){
@@ -271,24 +286,49 @@ function renderAll(){
     : '<div class="card empty">Mata kuliah tidak ditemukan.</div>';
 }
 
-function openCourse(id){
-  const course = S.courses.find(x => Number(x.id) === Number(id));
-
-  if(!course){
-    alert('Mata kuliah tidak ditemukan.');
+function openCourseSection(view){
+  if(!S.selectedCourse){
+    showView(view);
     return;
   }
 
-  $('courseDetailName').textContent = course.name;
-  $('courseDetailLecturer').textContent =
-    `Dosen: ${course.lecturer || 'Belum ditambahkan'}`;
+  showView(view, true);
 
-  showView('courseDetail');
+  if(view === 'materials') renderMaterials();
+  if(view === 'quizzes') renderQuizzes();
+  if(view === 'assignments') renderAssignments();
 }
-
 function populateCourses(){const select=$('matCourse');const cur=select.value;const set=[...new Set(S.materials.map(x=>x.course).filter(Boolean))];select.innerHTML='<option value="">Semua mata kuliah</option>'+set.map(x=>`<option>${esc(x)}</option>`).join('');select.value=cur}
-function renderMaterials(){populateCourses();const q=($('matSearch').value||'').toLowerCase();const c=$('matCourse').value;const arr=S.materials.filter(x=>(!q||[x.title,x.course,x.meeting].join(' ').toLowerCase().includes(q))&&(!c||x.course===c));$('materialsTable').innerHTML=arr.length?arr.map(x=>`<tr><td><strong>${esc(x.title)}</strong></td><td>${esc(x.course)}</td><td>${esc(x.meeting||'-')}</td><td>${new Date(x.uploaded_at).toLocaleDateString('id-ID')}</td><td><a class="btn soft" href="/api/materials/${x.id}/file">Buka</a> ${S.role==='admin'?`<button class="btn danger" onclick="del('material',${x.id})">Hapus</button>`:''}</td></tr>`).join(''):'<tr><td colspan="5" class="empty">Belum ada materi.</td></tr>'}
-function renderQuizzes(){$('quizCards').innerHTML=S.quizzes.length?S.quizzes.map(x=>`<div class="card quizcard"><span class="badge green">DIPUBLIKASIKAN</span><h4>${esc(x.title)}</h4><p>${esc(x.course)}${x.meeting?' • '+esc(x.meeting):''}</p><a class="btn primary" href="/api/files/quiz/${x.id}" target="_blank">Buka Kuis</a>${S.role==='admin'?` <button class="btn danger" onclick="del('quiz',${x.id})">Hapus</button>`:''}</div>`).join(''):'<div class="card empty">Belum ada kuis.</div>'}
+function renderMaterials(){
+  populateCourses();
+
+  const q = ($('matSearch').value || '').trim().toLowerCase();
+  const c = S.selectedCourse ? '' : $('matCourse').value;
+  const selectedId = S.selectedCourse ? Number(S.selectedCourse.id) : null;
+
+  const arr = S.materials.filter(x =>
+    (!selectedId || Number(x.course_id) === selectedId) &&
+    (!q || [x.title, x.course, x.meeting].join(' ').toLowerCase().includes(q)) &&
+    (!c || x.course === c)
+  );
+
+  $('materialsTable').innerHTML = arr.length
+    ? arr.map(x => `
+        <tr>
+          <td><strong>${esc(x.title)}</strong></td>
+          <td>${esc(x.course)}</td>
+          <td>${esc(x.meeting || '-')}</td>
+          <td>${new Date(x.uploaded_at).toLocaleDateString('id-ID')}</td>
+          <td>
+            <a class="btn soft" href="/api/materials/${x.id}/file">Buka</a>
+            ${S.role==='admin'
+              ? `<button class="btn danger" onclick="del('material',${x.id})">Hapus</button>`
+              : ''}
+          </td>
+        </tr>
+      `).join('')
+    : '<tr><td colspan="5" class="empty">Belum ada materi untuk mata kuliah ini.</td></tr>';
+}
 function renderAssignments(){$('assignmentCards').innerHTML=S.assignments.length?S.assignments.map(x=>`<div class="card taskcard"><span class="badge orange">${x.deadline?esc(x.deadline):'TANPA DEADLINE'}</span><h4>${esc(x.title)}</h4><p>${esc(x.course)}</p><p>${esc(x.instructions||'Tidak ada instruksi tambahan.')}</p><button class="btn primary" onclick="openSubmissionModal(${x.id})">Upload Karya</button>${S.role==='admin'?` <button class="btn danger" onclick="del('assignment',${x.id})">Hapus</button>`:''}</div>`).join(''):'<div class="card empty">Belum ada tugas.</div>'}
 function renderCalendar(){$('calendarCards').innerHTML=S.assignments.length?S.assignments.slice().sort((a,b)=>(a.deadline||'9999').localeCompare(b.deadline||'9999')).map(x=>`<div class="card"><span class="badge blue">${x.deadline?esc(x.deadline):'TBA'}</span><h4 style="margin:12px 0 4px">${esc(x.title)}</h4><p style="margin:0;color:var(--muted);font-size:12px">${esc(x.course)}</p></div>`).join(''):'<div class="card empty">Belum ada agenda.</div>'}
 function renderWorks(){$('worksTable').innerHTML=S.submissions.length?S.submissions.map(x=>`<tr><td><strong>${esc(x.title)}</strong><div class="item-meta">${esc(x.file_name)}</div></td><td>${esc(x.assignment)}</td><td>${new Date(x.uploaded_at).toLocaleString('id-ID')}</td><td><a class="btn soft" href="/api/files/submission/${x.id}" target="_blank">Buka</a></td></tr>`).join(''):'<tr><td colspan="4" class="empty">Belum ada karya yang dikumpulkan.</td></tr>'}
