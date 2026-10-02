@@ -43,7 +43,6 @@
       <button data-view="materials">▣ <span>Materi</span></button>
       <button data-view="quizzes">✓ <span>Kuis</span></button>
       <button data-view="assignments">▤ <span>Tugas</span></button>
-      <button data-view="calendar">◫ <span>Kalender</span></button>
       <button data-view="works">↥ <span>Karya Saya</span></button>
       <button class="admin-only" data-view="admin">⚙ <span>Admin Panel</span></button>
     </nav>
@@ -85,7 +84,7 @@
 
   <div class="grid cols3" id="courseList"></div>
 </div>
-      <div class="grid cols3"><div class="card"><div class="section-head"><div><h3>Materi terbaru</h3><p>Upload manual oleh admin</p></div><button class="btn soft" onclick="showView('materials')">Buka</button></div><div id="recentM"></div></div><div class="card"><div class="section-head"><div><h3>Kuis terbaru</h3><p>Latihan bersama</p></div><button class="btn soft" onclick="showView('quizzes')">Buka</button></div><div id="recentQ"></div></div><div class="card"><div class="section-head"><div><h3>Deadline terdekat</h3><p>Tugas aktif</p></div><button class="btn soft" onclick="showView('assignments')">Buka</button></div><div id="recentA"></div></div></div>
+      <div class="grid cols3"><div class="card"><div class="section-head"><div><h3>Materi terbaru</h3><p>Upload manual oleh admin</p></div><button class="btn soft" onclick="showView('materials')">Buka</button></div><div id="recentM"></div></div><div class="card"><div class="section-head"><div><h3>Kuis terbaru</h3><p>Latihan bersama</p></div><button class="btn soft" onclick="showView('quizzes')">Buka</button></div><div id="recentQ"></div></div>
       <div class="footer">Dibangun untuk ProMed • <b>Josan x ProMed</b></div>
     </section>
 
@@ -210,8 +209,7 @@ function renderAll(){
  $('statM').textContent=S.materials.length;$('statQ').textContent=S.quizzes.length;$('statA').textContent=S.assignments.length;$('statD').textContent=S.role==='admin'?'':S.user.npm? '1':'—';
  $('recentM').innerHTML=S.materials.slice(0,3).map(x=>item(x.title,x.course,x.meeting||'Materi')).join('')||'<div class="empty">Belum ada materi.</div>';
  $('recentQ').innerHTML=S.quizzes.slice(0,3).map(x=>item(x.title,x.course,x.meeting||'Kuis')).join('')||'<div class="empty">Belum ada kuis.</div>';
- $('recentA').innerHTML=S.assignments.slice(0,3).map(x=>item(x.title,x.deadline||'Tanpa deadline',x.course)).join('')||'<div class="empty">Belum ada tugas.</div>';
- renderCourses(),renderMaterials(),renderQuizzes(),renderAssignments(),renderCalendar(),renderWorks();
+ renderCourses(),renderMaterials(),renderQuizzes(),renderAssignments(),renderWorks();
 }
   function renderCourses(){
   const q = ($('courseSearch').value || '').trim().toLowerCase();
