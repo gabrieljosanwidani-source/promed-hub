@@ -282,40 +282,42 @@ async function logoutAdmin(env, request) {
 function userPayload(user) {
   return {id:user.id,npm:user.npm,name:user.name};
 }
-async function openMaterialFile(request, env, id) {
+async function openTemplateFile(request, env, id) {
   const student = await currentStudent(request, env);
   const admin = await isAdmin(request, env);
 
   if (!student && !admin) {
-    return json({ message: 'Belum login.' }, 401);
+    return new Response('Unauthorized', { status: 401 });
   }
 
   const row = await env.DB
-    .prepare(
-      'SELECT file_key,file_name,content_type FROM pm_materials WHERE id=? AND status=?'
-    )
-    .bind(id, 'published')
+    .prepare(`
+      SELECT file_key, file_name, content_type
+      FROM pm_templates
+      WHERE id=? AND status='published'
+    `)
+    .bind(id)
     .first();
 
   if (!row) {
-    return json({ message: 'Materi tidak ditemukan.' }, 404);
+    return new Response('Template tidak ditemukan', { status: 404 });
   }
 
   const response = await githubRead(env, row.file_key);
 
   if (!response) {
-    return json({ message: 'File materi tidak ditemukan.' }, 404);
+    return new Response('File template tidak ditemukan', { status: 404 });
   }
 
   return new Response(response.body, {
-    status: 200,
+      status: 200,
     headers: {
       'Content-Type': row.content_type || 'application/octet-stream',
       'Content-Disposition': `inline; filename="${row.file_name.replace(/"/g, '')}"`,
       'Cache-Control': 'private, no-store'
     }
   });
-  }
+}
 async function listMaterials(env, request) {
   const user = await currentStudent(request, env);
   if (!user && !(await isAdmin(request, env))) return json({message:'Belum login.'}, 401);
@@ -830,7 +832,16 @@ if (
     Number(p.split('/')[3])
   );
 }
-  
+ if (
+  request.method === 'GET' &&
+  /^\/api\/templates\/\d+\/file$/.test(p)
+) {
+  return openTemplateFile(
+    request,
+    env,
+    Number(p.split('/')[3])
+  );
+} 
       return env.ASSETS.fetch(request);
     } catch (err) {
       console.error(err);
