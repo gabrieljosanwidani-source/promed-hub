@@ -329,7 +329,78 @@ function renderMaterials(){
       `).join('')
     : '<tr><td colspan="5" class="empty">Belum ada materi untuk mata kuliah ini.</td></tr>';
 }
-function renderAssignments(){$('assignmentCards').innerHTML=S.assignments.length?S.assignments.map(x=>`<div class="card taskcard"><span class="badge orange">${x.deadline?esc(x.deadline):'TANPA DEADLINE'}</span><h4>${esc(x.title)}</h4><p>${esc(x.course)}</p><p>${esc(x.instructions||'Tidak ada instruksi tambahan.')}</p><button class="btn primary" onclick="openSubmissionModal(${x.id})">Upload Karya</button>${S.role==='admin'?` <button class="btn danger" onclick="del('assignment',${x.id})">Hapus</button>`:''}</div>`).join(''):'<div class="card empty">Belum ada tugas.</div>'}
+
+function renderQuizzes(){
+  const selectedId = S.selectedCourse
+    ? Number(S.selectedCourse.id)
+    : null;
+
+  const arr = S.quizzes.filter(x =>
+    !selectedId || Number(x.course_id) === selectedId
+  );
+
+  $('quizCards').innerHTML = arr.length
+    ? arr.map(x => `
+        <div class="card quizcard">
+          <span class="badge green">DIPUBLIKASIKAN</span>
+          <h4>${esc(x.title)}</h4>
+          <p>
+            ${esc(x.course)}
+            ${x.meeting ? ' • ' + esc(x.meeting) : ''}
+          </p>
+
+          <a class="btn primary"
+             href="/api/files/quiz/${x.id}"
+             target="_blank">
+            Buka Kuis
+          </a>
+
+          ${S.role === 'admin'
+            ? `<button class="btn danger"
+                 onclick="del('quiz',${x.id})">
+                 Hapus
+               </button>`
+            : ''}
+        </div>
+      `).join('')
+    : '<div class="card empty">Belum ada kuis untuk mata kuliah ini.</div>';
+}
+
+function renderAssignments(){
+  const selectedId = S.selectedCourse
+    ? Number(S.selectedCourse.id)
+    : null;
+
+  const arr = S.assignments.filter(x =>
+    !selectedId || Number(x.course_id) === selectedId
+  );
+
+  $('assignmentCards').innerHTML = arr.length
+    ? arr.map(x => `
+        <div class="card taskcard">
+          <span class="badge orange">
+            ${x.deadline ? esc(x.deadline) : 'TANPA DEADLINE'}
+          </span>
+
+          <h4>${esc(x.title)}</h4>
+          <p>${esc(x.course)}</p>
+          <p>${esc(x.instructions || 'Tidak ada instruksi tambahan.')}</p>
+
+          <button class="btn primary"
+                  onclick="openSubmissionModal(${x.id})">
+            Upload Karya
+          </button>
+
+          ${S.role === 'admin'
+            ? `<button class="btn danger"
+                 onclick="del('assignment',${x.id})">
+                 Hapus
+               </button>`
+            : ''}
+        </div>
+      `).join('')
+    : '<div class="card empty">Belum ada tugas untuk mata kuliah ini.</div>';
+}
 function renderCalendar(){$('calendarCards').innerHTML=S.assignments.length?S.assignments.slice().sort((a,b)=>(a.deadline||'9999').localeCompare(b.deadline||'9999')).map(x=>`<div class="card"><span class="badge blue">${x.deadline?esc(x.deadline):'TBA'}</span><h4 style="margin:12px 0 4px">${esc(x.title)}</h4><p style="margin:0;color:var(--muted);font-size:12px">${esc(x.course)}</p></div>`).join(''):'<div class="card empty">Belum ada agenda.</div>'}
 function renderWorks(){$('worksTable').innerHTML=S.submissions.length?S.submissions.map(x=>`<tr><td><strong>${esc(x.title)}</strong><div class="item-meta">${esc(x.file_name)}</div></td><td>${esc(x.assignment)}</td><td>${new Date(x.uploaded_at).toLocaleString('id-ID')}</td><td><a class="btn soft" href="/api/files/submission/${x.id}" target="_blank">Buka</a></td></tr>`).join(''):'<tr><td colspan="4" class="empty">Belum ada karya yang dikumpulkan.</td></tr>'}
 function openMaterialModal(){$('modalTitle').textContent='Upload Materi';$('modalDesc').textContent='Materi akan langsung dipublikasikan untuk semua mahasiswa setelah disimpan.';$('modalBody').innerHTML=`<div class="field"><label>Judul materi</label><input id="fTitle" placeholder="Contoh: Pertemuan 4 — Media Baru"></div><div class="field"><label>Mata kuliah</label><input id="fCourse" placeholder="Komunikasi Massa"></div><div class="field"><label>Pertemuan</label><input id="fMeeting" placeholder="Pertemuan 4"></div><div class="field"><label>Sumber/link kampus (opsional)</label><input id="fSource" placeholder="https://..."></div><div class="field"><label>File PDF/PPT/DOCX</label><input id="fFile" type="file" accept=".pdf,.ppt,.pptx,.doc,.docx"></div>`;$('modalSave').onclick=saveMaterial;openModal()}
