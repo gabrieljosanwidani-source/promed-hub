@@ -319,20 +319,20 @@ async function openMaterialFile(request, env, id) {
 async function listMaterials(env, request) {
   const user = await currentStudent(request, env);
   if (!user && !(await isAdmin(request, env))) return json({message:'Belum login.'}, 401);
-  const q = await env.DB.prepare(`SELECT id,title,course,meeting,source_url,file_key,file_name,content_type,uploaded_at,status
+  const q = await env.DB.prepare(`SELECT id,title,course,course_id,meeting,source_url,file_key,file_name,content_type,uploaded_at,status
 FROM pm_materials WHERE status='published' ORDER BY uploaded_at DESC`).all();
   return json({items:q.results || []});
 }
 async function listQuizzes(env, request) {
   const user = await currentStudent(request, env);
   if (!user && !(await isAdmin(request, env))) return json({message:'Belum login.'}, 401);
-  const q = await env.DB.prepare(`SELECT id,title,course,meeting,file_name,content_type,uploaded_at,status FROM pm_quizzes WHERE status='published' ORDER BY uploaded_at DESC`).all();
+  const q = await env.DB.prepare(`SELECT id,title,course,course_id,meeting,file_name,content_type,uploaded_at,status FROM pm_quizzes WHERE status='published' ORDER BY uploaded_at DESC`).all();
   return json({items:q.results || []});
 }
 async function listAssignments(env, request) {
   const user = await currentStudent(request, env);
   if (!user && !(await isAdmin(request, env))) return json({message:'Belum login.'}, 401);
-  const q = await env.DB.prepare(`SELECT id,title,course,instructions,deadline,created_at,status FROM pm_assignments WHERE status='active' ORDER BY CASE WHEN deadline IS NULL OR deadline='' THEN 1 ELSE 0 END, deadline`).all();
+  const q = await env.DB.prepare(`SELECT id,title,course,course_id,instructions,deadline,created_at,status FROM pm_assignments WHERE status='active' ORDER BY CASE WHEN deadline IS NULL OR deadline='' THEN 1 ELSE 0 END, deadline`).all();
   return json({items:q.results || []});
 }
 async function listCourses(env, request) {
