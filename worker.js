@@ -352,6 +352,7 @@ async function listTemplates(env, request) {
 
   return json({items:q.results || []});
 }
+async function listCourses(env, request) {
   const user = await currentStudent(request, env);
   const admin = await isAdmin(request, env);
 
