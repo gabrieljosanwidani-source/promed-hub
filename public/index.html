@@ -468,9 +468,13 @@ function renderAssignments(){
           </p>
 
           ${
-            x.file_key
-              ? `<button class="btn primary">Buka Template</button>`
-              : `<span class="badge orange">File belum diupload</span>`
+           x.file_key
+  ? `<a
+       class="btn primary"
+       href="/api/templates/${x.id}/file"
+       target="_blank"
+     >Buka Template</a>`
+  : `<span class="badge orange">File belum diupload</span>`
           }
         </div>
       `).join('')
