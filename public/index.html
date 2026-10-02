@@ -275,7 +275,7 @@ function renderAll(){
 
   $('courseList').innerHTML = arr.length
     ? arr.map(x => `
-        <div class="card" style="cursor:pointer" onclick="openCourse(${x.id})">
+        <div class="card" style="cursor:pointer" onclick="window.openCourse(${x.id})">
   <span class="badge blue">SEMESTER ${x.semester}</span>
   <h4 style="margin:12px 0 5px">${esc(x.name)}</h4>
   <p style="margin:0;color:var(--muted);font-size:12px">
@@ -302,7 +302,7 @@ function openCourse(id){
 
   showView('courseDetail', true);
 }
-
+window.openCourse = openCourse;
 function openCourseSection(view){
   if(!S.selectedCourse){
     showView(view);
