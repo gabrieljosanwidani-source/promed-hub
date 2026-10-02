@@ -122,7 +122,7 @@
       <div class="fileico">📄</div>
       <h3>Template</h3>
       <p>Template makalah, PPT, laporan, dan lainnya.</p>
-      <button class="btn soft">Buka Template</button>
+      <button class="btn soft" onclick="openCourseSection('templates')">Buka Template</button>
     </div>
   </div>
 </section>
@@ -131,7 +131,16 @@
     <section id="quizzes" class="view content"><div class="section-head"><div><h3>Kuis & Latihan</h3><p>Kuis yang admin publikasikan otomatis tersedia di semua perangkat yang sudah login.</p></div><button class="btn primary admin-only" onclick="openQuizModal()">+ Upload Kuis</button></div><div class="grid cols3" id="quizCards"></div></section>
 
     <section id="assignments" class="view content"><div class="section-head"><div><h3>Tugas</h3><p>Instruksi sama untuk semua; pengumpulan file bersifat pribadi per mahasiswa.</p></div><button class="btn primary admin-only" onclick="openAssignmentModal()">+ Buat Tugas</button></div><div class="grid cols3" id="assignmentCards"></div></section>
+<section id="templates" class="view content">
+  <div class="section-head">
+    <div>
+      <h3>Template</h3>
+      <p>Template yang tersedia untuk mata kuliah ini.</p>
+    </div>
+  </div>
 
+  <div class="grid cols3" id="templateCards"></div>
+</section>
     <section id="calendar" class="view content"><div class="section-head"><div><h3>Kalender Akademik</h3><p>Ringkasan agenda yang diambil dari data tugas/kegiatan ProMed.</p></div></div><div class="grid cols3" id="calendarCards"></div></section>
 
     <section id="works" class="view content"><div class="section-head"><div><h3>Karya Saya</h3><p>Hanya pengumpulan milik akun yang sedang login yang tampil di sini.</p></div><button class="btn primary" onclick="openSubmissionModal()">+ Upload Karya</button></div><div class="note">Karya mahasiswa disimpan di R2 dengan path privat per akun. Admin bisa melihat semua pengumpulan dari Admin Panel.</div><div class="card table-wrap" style="margin-top:14px"><table class="table"><thead><tr><th>Karya</th><th>Tugas</th><th>Waktu</th><th>Aksi</th></tr></thead><tbody id="worksTable"></tbody></table></div></section>
@@ -158,6 +167,7 @@ const S={
   quizzes:[],
   assignments:[],
   submissions:[]
+  templates:[],
 };
 const $ = id => document.getElementById(String(id).replace(/^#/, ''));
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
@@ -225,12 +235,13 @@ async function bootApp(){
 }
 async function logout(){await api(S.role==='admin'?'/api/admin/logout':'/api/logout',{method:'POST'}).catch(()=>{});location.reload()}
 async function loadAll(){
-  const [c,m,q,a,s]=await Promise.all([
+  const [c,m,q,a,s,t]=await Promise.all([
     api('/api/courses'),
     api('/api/materials'),
     api('/api/quizzes'),
     api('/api/assignments'),
-    api('/api/submissions')
+    api('/api/submissions'),
+    api('/api/templates')
   ]);
 
   S.courses=c.items;
@@ -238,6 +249,7 @@ async function loadAll(){
   S.quizzes=q.items;
   S.assignments=a.items;
   S.submissions=s.items;
+  S.templates=t.items;
 
   renderAll();
 }
@@ -314,6 +326,7 @@ function openCourseSection(view){
   if(view === 'materials') renderMaterials();
   if(view === 'quizzes') renderQuizzes();
   if(view === 'assignments') renderAssignments();
+  if(view === 'templates') renderTemplates();
 }
 function populateCourses(){const select=$('matCourse');const cur=select.value;const set=[...new Set(S.materials.map(x=>x.course).filter(Boolean))];select.innerHTML='<option value="">Semua mata kuliah</option>'+set.map(x=>`<option>${esc(x)}</option>`).join('');select.value=cur}
 function renderMaterials(){
@@ -417,6 +430,39 @@ function renderAssignments(){
         </div>
       `).join('')
     : '<div class="card empty">Belum ada tugas untuk mata kuliah ini.</div>';
+}
+  function renderTemplates(){
+  const selectedId = S.selectedCourse
+    ? Number(S.selectedCourse.id)
+    : null;
+
+  const arr = S.templates.filter(x =>
+    !selectedId || Number(x.course_id) === selectedId
+  );
+
+  $('templateCards').innerHTML = arr.length
+    ? arr.map(x => `
+        <div class="card">
+          <div class="fileico">📄</div>
+
+          <span class="badge blue">TEMPLATE</span>
+
+          <h4 style="margin:12px 0 5px">
+            ${esc(x.title)}
+          </h4>
+
+          <p>
+            ${esc(x.description || 'Tidak ada deskripsi template.')}
+          </p>
+
+          ${
+            x.file_key
+              ? `<button class="btn primary">Buka Template</button>`
+              : `<span class="badge orange">File belum diupload</span>`
+          }
+        </div>
+      `).join('')
+    : '<div class="card empty">Belum ada template untuk mata kuliah ini.</div>';
 }
 function renderCalendar(){$('calendarCards').innerHTML=S.assignments.length?S.assignments.slice().sort((a,b)=>(a.deadline||'9999').localeCompare(b.deadline||'9999')).map(x=>`<div class="card"><span class="badge blue">${x.deadline?esc(x.deadline):'TBA'}</span><h4 style="margin:12px 0 4px">${esc(x.title)}</h4><p style="margin:0;color:var(--muted);font-size:12px">${esc(x.course)}</p></div>`).join(''):'<div class="card empty">Belum ada agenda.</div>'}
 function renderWorks(){$('worksTable').innerHTML=S.submissions.length?S.submissions.map(x=>`<tr><td><strong>${esc(x.title)}</strong><div class="item-meta">${esc(x.file_name)}</div></td><td>${esc(x.assignment)}</td><td>${new Date(x.uploaded_at).toLocaleString('id-ID')}</td><td><a class="btn soft" href="/api/files/submission/${x.id}" target="_blank">Buka</a></td></tr>`).join(''):'<tr><td colspan="4" class="empty">Belum ada karya yang dikumpulkan.</td></tr>'}
