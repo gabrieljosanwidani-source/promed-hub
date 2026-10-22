@@ -835,6 +835,60 @@ export default {
         const s=await currentStudent(request,env);if(s)return json({authenticated:true,role:'student',user:userPayload(s)});
         return json({authenticated:false},200);
       }
+      if(request.method==='GET'&&p==='/api/profile'){
+  const student=await currentStudent(request,env);
+  if(!student)return json({message:'Silakan login sebagai mahasiswa.'},401);
+
+  const profile=await env.DB.prepare(`
+    SELECT program_study, cohort_year, semester, photo_key, updated_at
+    FROM pm_profiles
+    WHERE student_id=?
+  `).bind(student.id).first();
+
+  return json({
+    profile:profile||{
+      program_study:'',
+      cohort_year:'',
+      semester:'',
+      photo_key:null,
+      updated_at:null
+    }
+  });
+}
+
+if(request.method==='PUT'&&p==='/api/profile'){
+  const student=await currentStudent(request,env);
+  if(!student)return json({message:'Silakan login sebagai mahasiswa.'},401);
+
+  let data;
+  try{
+    data=await request.json();
+  }catch{
+    return json({message:'Data tidak valid.'},400);
+  }
+
+  const programStudy=String(data.program_study??'').trim().slice(0,100);
+  const cohortYear=String(data.cohort_year??'').trim().slice(0,20);
+  const semester=String(data.semester??'').trim().slice(0,40);
+
+  await env.DB.prepare(`
+    INSERT INTO pm_profiles
+      (student_id, program_study, cohort_year, semester, updated_at)
+    VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+    ON CONFLICT(student_id) DO UPDATE SET
+      program_study=excluded.program_study,
+      cohort_year=excluded.cohort_year,
+      semester=excluded.semester,
+      updated_at=CURRENT_TIMESTAMP
+  `).bind(
+    student.id,
+    programStudy,
+    cohortYear,
+    semester
+  ).run();
+
+  return json({ok:true,message:'Profil berhasil disimpan.'});
+}
       if(request.method==='GET'&&p==='/api/materials')return listMaterials(env,request);
       if(request.method==='GET'&&p==='/api/quizzes')return listQuizzes(env,request);
       if(request.method==='GET'&&p==='/api/assignments')return listAssignments(env,request);
