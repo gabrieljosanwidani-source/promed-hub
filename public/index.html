@@ -177,12 +177,19 @@
   <div class="card" style="margin-top:15px">
     <div style="display:flex;align-items:center;gap:15px;margin-bottom:24px">
       <div id="profileAvatar"
-        style="width:64px;height:64px;border-radius:50%;background:#dbeafe;display:flex;align-items:center;justify-content:center;font-size:28px">
-        👤
+        style="width:88px;height:88px;min-width:88px;border-radius:50%;background:#dbe8ff;display:flex;align-items:center;justify-content:center;font-size:34px;overflow:hidden">
+        <span id="profileAvatarPlaceholder">👤</span>
+        <img id="profilePhoto" alt="Foto profil mahasiswa" style="display:none;width:100%;height:100%;object-fit:cover">
       </div>
       <div>
         <h3 id="profileDisplayName">Mahasiswa ProMed</h3>
         <p id="profileDisplayNpm">NPM: -</p>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px">
+          <input id="profilePhotoInput" type="file" accept="image/jpeg,image/png,image/webp" onchange="previewProfilePhoto(event)" style="max-width:230px;font-size:12px">
+          <button type="button" class="btn soft" id="profilePhotoButton" onclick="uploadProfilePhoto()">Unggah Foto</button>
+        </div>
+        <small style="display:block;color:var(--muted);margin-top:6px">JPG, PNG, atau WEBP. Maksimal 2 MB.</small>
+        <div id="profilePhotoMessage" style="font-size:12px;margin-top:5px"></div>
       </div>
     </div>
 
@@ -339,6 +346,102 @@ function showView(id, preserveCourse=false){
   if(id==='profile' && S.role==='student') loadProfile();
 }
 document.querySelectorAll('.nav button').forEach(b=>b.addEventListener('click',()=>showView(b.dataset.view)));function toggleSide(){$('sidebar').classList.toggle('open')}
+function setProfilePhotoView(hasPhoto, cacheKey=''){
+  const photo = $('profilePhoto');
+  const placeholder = $('profileAvatarPlaceholder');
+  const topAvatar = $('avatar');
+  const initials = S.role === 'student' ? String(S.user?.npm || 'PM').slice(-2) : 'AD';
+
+  if (hasPhoto) {
+    const photoUrl = '/api/profile/photo?v=' + encodeURIComponent(cacheKey || Date.now());
+    photo.src = photoUrl;
+    photo.style.display = 'block';
+    placeholder.style.display = 'none';
+    topAvatar.textContent = '';
+    topAvatar.style.backgroundImage = `url("${photoUrl}")`;
+    topAvatar.style.backgroundSize = 'cover';
+    topAvatar.style.backgroundPosition = 'center';
+  } else {
+    photo.removeAttribute('src');
+    photo.style.display = 'none';
+    placeholder.style.display = 'inline';
+    topAvatar.style.backgroundImage = 'none';
+    topAvatar.textContent = initials;
+  }
+}
+
+function previewProfilePhoto(event){
+  const file = event.target.files?.[0];
+  const message = $('profilePhotoMessage');
+  const allowed = ['image/jpeg','image/png','image/webp'];
+
+  if (!file) return;
+  if (!allowed.includes(file.type)) {
+    message.textContent = 'Format foto harus JPG, PNG, atau WEBP.';
+    message.style.color = '#b91c1c';
+    event.target.value = '';
+    return;
+  }
+  if (file.size > 2 * 1024 * 1024) {
+    message.textContent = 'Ukuran foto maksimal 2 MB.';
+    message.style.color = '#b91c1c';
+    event.target.value = '';
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    $('profilePhoto').src = String(reader.result);
+    $('profilePhoto').style.display = 'block';
+    $('profileAvatarPlaceholder').style.display = 'none';
+    message.textContent = 'Pratinjau foto siap. Klik Unggah Foto untuk menyimpan.';
+    message.style.color = '#536071';
+  };
+  reader.onerror = () => {
+    message.textContent = 'Foto tidak dapat dibaca.';
+    message.style.color = '#b91c1c';
+  };
+  reader.readAsDataURL(file);
+}
+
+async function uploadProfilePhoto(){
+  const input = $('profilePhotoInput');
+  const button = $('profilePhotoButton');
+  const message = $('profilePhotoMessage');
+  const file = input.files?.[0];
+  const allowed = ['image/jpeg','image/png','image/webp'];
+
+  if (!file) {
+    message.textContent = 'Pilih foto terlebih dahulu.';
+    message.style.color = '#b91c1c';
+    return;
+  }
+  if (!allowed.includes(file.type) || file.size > 2 * 1024 * 1024) {
+    message.textContent = 'Pilih JPG, PNG, atau WEBP dengan ukuran maksimal 2 MB.';
+    message.style.color = '#b91c1c';
+    return;
+  }
+
+  const form = new FormData();
+  form.append('photo', file);
+  button.disabled = true;
+  message.textContent = 'Mengunggah foto...';
+  message.style.color = '#536071';
+
+  try {
+    const result = await api('/api/profile/photo', {method:'POST', body:form});
+    setProfilePhotoView(true, Date.now());
+    message.textContent = result.message || 'Foto profil berhasil diperbarui.';
+    message.style.color = '#15803d';
+    input.value = '';
+  } catch (error) {
+    message.textContent = error.message || 'Gagal mengunggah foto.';
+    message.style.color = '#b91c1c';
+  } finally {
+    button.disabled = false;
+  }
+}
+
 async function loadProfile(){
   const message = $('profileMessage');
 
@@ -356,6 +459,7 @@ async function loadProfile(){
     $('profileProgram').value = p.program_study || '';
     $('profileCohort').value = p.cohort_year || '';
     $('profileSemester').value = p.semester || '';
+    setProfilePhotoView(!!p.photo_key, p.updated_at || Date.now());
 
     message.textContent = '';
   } catch (error) {
