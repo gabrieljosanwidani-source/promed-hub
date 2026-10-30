@@ -44,6 +44,7 @@
       <button data-view="quizzes">✓ <span>Kuis</span></button>
       <button data-view="assignments">▤ <span>Tugas</span></button>
       <button data-view="works">↥ <span>Karya Saya</span></button>
+      <button data-view="profile">👤 <span>Profil Saya</span></button>
       <button class="admin-only" data-view="admin">⚙ <span>Admin Panel</span></button>
     </nav>
     <div class="sidefoot">Platform pembelajaran ProMed<div><strong>Josan x ProMed</strong></div></div>
@@ -165,7 +166,64 @@
     </section>
 
     <section id="searchResults" class="view content"><div class="section-head"><div><h3>Hasil Pencarian</h3><p id="searchLabel">-</p></div></div><div class="card" id="searchBox"></div></section>
-  </main>
+  <section id="profile" class="view content">
+  <div class="section-head">
+    <div>
+      <h3>Profil Mahasiswa</h3>
+      <p>Kelola informasi akademik akun ProMed kamu.</p>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:15px">
+    <div style="display:flex;align-items:center;gap:15px;margin-bottom:24px">
+      <div id="profileAvatar"
+        style="width:64px;height:64px;border-radius:50%;background:#dbeafe;display:flex;align-items:center;justify-content:center;font-size:28px">
+        👤
+      </div>
+      <div>
+        <h3 id="profileDisplayName">Mahasiswa ProMed</h3>
+        <p id="profileDisplayNpm">NPM: -</p>
+      </div>
+    </div>
+
+    <form id="profileForm">
+      <div style="margin-bottom:16px">
+        <label for="profileName">Nama mahasiswa</label>
+        <input id="profileName" type="text" readonly>
+      </div>
+
+      <div style="margin-bottom:16px">
+        <label for="profileNpm">NPM</label>
+        <input id="profileNpm" type="text" readonly>
+      </div>
+
+      <div style="margin-bottom:16px">
+        <label for="profileProgram">Program studi</label>
+        <input id="profileProgram" type="text"
+          maxlength="100" placeholder="Contoh: Produksi Media">
+      </div>
+
+      <div style="margin-bottom:16px">
+        <label for="profileCohort">Tahun angkatan</label>
+        <input id="profileCohort" type="text"
+          maxlength="20" placeholder="Contoh: 2026">
+      </div>
+
+      <div style="margin-bottom:16px">
+        <label for="profileSemester">Semester</label>
+        <input id="profileSemester" type="text"
+          maxlength="40" placeholder="Contoh: Semester 1">
+      </div>
+
+      <div id="profileMessage" style="margin-bottom:12px"></div>
+
+      <button type="submit" class="btn primary">
+        Simpan Profil
+      </button>
+    </form>
+  </div>
+</section>
+</main>
 </div>
 
 <div id="modalBack" class="modalback" onclick="modalOutside(event)"><div class="modal" onclick="event.stopPropagation()"><h3 id="modalTitle">-</h3><p id="modalDesc">-</p><div id="modalBody"></div><div class="modal-actions"><button class="btn soft" onclick="closeModal()">Batal</button><button id="modalSave" class="btn primary">Simpan</button></div></div></div>
@@ -276,11 +334,65 @@ function showView(id, preserveCourse=false){
   document.querySelectorAll('.nav button').forEach(b =>
     b.classList.toggle('active', b.dataset.view === id)
   );
-
   $('sidebar').classList.remove('open');
   window.scrollTo({top:0,behavior:'smooth'});
+  if(id==='profile' && S.role==='student') loadProfile();
 }
 document.querySelectorAll('.nav button').forEach(b=>b.addEventListener('click',()=>showView(b.dataset.view)));function toggleSide(){$('sidebar').classList.toggle('open')}
+async function loadProfile(){
+  const message = $('profileMessage');
+
+  try {
+    const data = await api('/api/profile');
+    const p = data.profile || {};
+    const name = S.user?.name || '';
+    const npm = S.user?.npm || '';
+
+    $('profileName').value = name;
+    $('profileNpm').value = npm;
+    $('profileDisplayName').textContent = name || 'Mahasiswa ProMed';
+    $('profileDisplayNpm').textContent = 'NPM: ' + (npm || '-');
+
+    $('profileProgram').value = p.program_study || '';
+    $('profileCohort').value = p.cohort_year || '';
+    $('profileSemester').value = p.semester || '';
+
+    message.textContent = '';
+  } catch (error) {
+    message.textContent = error.message || 'Gagal memuat profil.';
+    message.style.color = '#b91c1c';
+  }
+}
+
+$('profileForm').addEventListener('submit', async event => {
+  event.preventDefault();
+
+  const message = $('profileMessage');
+  const button = $('profileForm').querySelector('button[type="submit"]');
+
+  button.disabled = true;
+  message.textContent = 'Menyimpan profil...';
+
+  try {
+    const result = await api('/api/profile', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        program_study: $('profileProgram').value,
+        cohort_year: $('profileCohort').value,
+        semester: $('profileSemester').value
+      })
+    });
+
+    message.textContent = result.message || 'Profil berhasil disimpan.';
+    message.style.color = '#15803d';
+  } catch (error) {
+    message.textContent = error.message || 'Gagal menyimpan profil.';
+    message.style.color = '#b91c1c';
+  } finally {
+    button.disabled = false;
+  }
+});
 function item(title,meta,badge){return `<div class="item"><div class="item-left"><div class="fileico">•</div><div><div class="item-title">${esc(title)}</div><div class="item-meta">${esc(meta)}</div></div></div><span class="badge">${esc(badge)}</span></div>`}
 function renderAll(){
  $('statM').textContent=S.materials.length;$('statQ').textContent=S.quizzes.length;$('statA').textContent=S.assignments.length;$('statD').textContent=S.role==='admin'?'':S.user.npm? '1':'—';
