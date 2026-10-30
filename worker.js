@@ -835,6 +835,104 @@ export default {
         const s=await currentStudent(request,env);if(s)return json({authenticated:true,role:'student',user:userPayload(s)});
         return json({authenticated:false},200);
       }
+            if(request.method==='GET'&&p==='/api/profile/photo'){
+        const student=await currentStudent(request,env);
+        if(!student)return json({message:'Silakan login sebagai mahasiswa.'},401);
+
+        const profile=await env.DB.prepare(
+          'SELECT photo_key FROM pm_profiles WHERE student_id=?'
+        ).bind(student.id).first();
+
+        if(!profile?.photo_key)return new Response('Foto profil belum diunggah.',{
+          status:404,
+          headers:{'Cache-Control':'private, no-store'}
+        });
+
+        const object=await env.FILES.get(profile.photo_key);
+        if(!object)return new Response('Foto profil tidak ditemukan.',{status:404});
+
+        const contentType=object.httpMetadata?.contentType||'application/octet-stream';
+        if(!['image/jpeg','image/png','image/webp'].includes(contentType)){
+          return new Response('Format foto tidak diizinkan.',{status:415});
+        }
+
+        return new Response(object.body,{
+          headers:{
+            'Content-Type':contentType,
+            'Content-Disposition':'inline',
+            'Cache-Control':'private, no-store',
+            'X-Content-Type-Options':'nosniff'
+          }
+        });
+      }
+
+      if(request.method==='POST'&&p==='/api/profile/photo'){
+        const student=await currentStudent(request,env);
+        if(!student)return json({message:'Silakan login sebagai mahasiswa.'},401);
+
+        let form;
+        try{
+          form=await request.formData();
+        }catch{
+          return json({message:'Form unggahan tidak valid.'},400);
+        }
+
+        const file=form.get('photo');
+        if(!(file instanceof File)||file.size===0)
+          return json({message:'Pilih foto terlebih dahulu.'},400);
+
+        if(file.size>2*1024*1024)
+          return json({message:'Ukuran foto maksimal 2 MB.'},413);
+
+        const types={
+          'image/jpeg':'jpg',
+          'image/png':'png',
+          'image/webp':'webp'
+        };
+
+        const ext=types[file.type];
+        if(!ext)return json({message:'Gunakan JPG, PNG, atau WEBP.'},415);
+
+        const bytes=new Uint8Array(await file.arrayBuffer());
+        const valid=
+          (ext==='jpg'&&bytes[0]===255&&bytes[1]===216&&bytes[2]===255)||
+          (ext==='png'&&bytes[0]===137&&bytes[1]===80&&bytes[2]===78&&bytes[3]===71&&bytes[4]===13&&bytes[5]===10&&bytes[6]===26&&bytes[7]===10)||
+          (ext==='webp'&&String.fromCharCode(...bytes.slice(0,4))==='RIFF'&&String.fromCharCode(...bytes.slice(8,12))==='WEBP');
+
+        if(!valid)return json({message:'Isi file bukan gambar yang valid.'},415);
+
+        const old=await env.DB.prepare(
+          'SELECT photo_key FROM pm_profiles WHERE student_id=?'
+        ).bind(student.id).first();
+
+        const key=`profiles/${student.id}/${crypto.randomUUID()}.${ext}`;
+
+        await env.FILES.put(key,bytes,{
+          httpMetadata:{
+            contentType:file.type,
+            cacheControl:'private, no-store'
+          }
+        });
+
+        try{
+          await env.DB.prepare(`
+            INSERT INTO pm_profiles (student_id,photo_key,updated_at)
+            VALUES (?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(student_id) DO UPDATE SET
+              photo_key=excluded.photo_key,
+              updated_at=CURRENT_TIMESTAMP
+          `).bind(student.id,key).run();
+        }catch(error){
+          await env.FILES.delete(key).catch(()=>{});
+          throw error;
+        }
+
+        if(old?.photo_key&&old.photo_key.startsWith(`profiles/${student.id}/`)){
+          await env.FILES.delete(old.photo_key).catch(()=>{});
+        }
+
+        return json({ok:true,message:'Foto profil berhasil diperbarui.'});
+      }
       if(request.method==='GET'&&p==='/api/profile'){
   const student=await currentStudent(request,env);
   if(!student)return json({message:'Silakan login sebagai mahasiswa.'},401);
