@@ -703,6 +703,33 @@ async function adminDeleteQuiz(request, env, id) {
 
   return json({ message: 'Kuis dihapus.' });
 }
+
+async function adminDeleteTemplate(request, env, id) {
+  if (!(await isAdmin(request, env))) {
+    return json({ message: 'Belum login admin.' }, 401);
+  }
+
+  const row = await env.DB
+    .prepare('SELECT file_key FROM pm_templates WHERE id=?')
+    .bind(id)
+    .first();
+
+  if (!row) {
+    return json({ message: 'Template tidak ditemukan.' }, 404);
+  }
+
+  if (row.file_key) {
+    await githubDelete(env, row.file_key);
+  }
+
+  await env.DB
+    .prepare('DELETE FROM pm_templates WHERE id=?')
+    .bind(id)
+    .run();
+
+  return json({ message: 'Template berhasil dihapus.' });
+}
+
 async function adminDeleteAssignment(request, env, id) {
   if(!(await isAdmin(request,env)))return json({message:'Belum login admin.'},401);
   await env.DB.prepare('DELETE FROM pm_assignments WHERE id=?').bind(id).run();return json({message:'Tugas dihapus.'});
@@ -1007,6 +1034,7 @@ if(request.method==='PUT'&&p==='/api/profile'){
       if(request.method==='DELETE'&&/^\/api\/admin\/materials\/\d+$/.test(p))return adminDeleteMaterial(request,env,Number(p.split('/').pop()));
       if(request.method==='DELETE'&&/^\/api\/admin\/quizzes\/\d+$/.test(p))return adminDeleteQuiz(request,env,Number(p.split('/').pop()));
       if(request.method==='POST'&&p==='/api/admin/templates')return adminCreateTemplate(request,env);
+      if(request.method==='DELETE'&&/^\/api\/admin\/templates\/\d+$/.test(p))return adminDeleteTemplate(request,env,Number(p.split('/').pop()));
       if(request.method==='DELETE'&&/^\/api\/admin\/assignments\/\d+$/.test(p))return adminDeleteAssignment(request,env,Number(p.split('/').pop()));
       if(request.method==='GET'&&p==='/api/admin/settings'){
         if(!(await isAdmin(request,env)))return json({message:'Belum login admin.'},401);
