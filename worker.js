@@ -709,23 +709,46 @@ async function adminDeleteTemplate(request, env, id) {
     return json({ message: 'Belum login admin.' }, 401);
   }
 
-  const row = await env.DB
-    .prepare('SELECT file_key FROM pm_templates WHERE id=?')
-    .bind(id)
-    .first();
+  let row;
+  try {
+    row = await env.DB
+      .prepare('SELECT file_key FROM pm_templates WHERE id=?')
+      .bind(id)
+      .first();
+  } catch (error) {
+    console.error('Template lookup failed:', error);
+    return json({ message: 'Gagal membaca data template dari database.' }, 500);
+  }
 
   if (!row) {
     return json({ message: 'Template tidak ditemukan.' }, 404);
   }
 
+  // Hapus file di GitHub terlebih dahulu. Jika gagal, pertahankan baris D1
+  // agar template tidak hilang dari daftar sementara file-nya masih ada.
   if (row.file_key) {
-    await githubDelete(env, row.file_key);
+    try {
+      await githubDelete(env, row.file_key);
+    } catch (error) {
+      console.error('GitHub template deletion failed:', error);
+      const detail = error instanceof Error ? error.message : 'Kesalahan GitHub API.';
+      return json({
+        message: `File template gagal dihapus dari GitHub: ${detail}`
+      }, 502);
+    }
   }
 
-  await env.DB
-    .prepare('DELETE FROM pm_templates WHERE id=?')
-    .bind(id)
-    .run();
+  try {
+    await env.DB
+      .prepare('DELETE FROM pm_templates WHERE id=?')
+      .bind(id)
+      .run();
+  } catch (error) {
+    console.error('Template database deletion failed:', error);
+    return json({
+      message: 'File sudah diproses, tetapi data template di database gagal dihapus.'
+    }, 500);
+  }
 
   return json({ message: 'Template berhasil dihapus.' });
 }
@@ -1034,7 +1057,7 @@ if(request.method==='PUT'&&p==='/api/profile'){
       if(request.method==='DELETE'&&/^\/api\/admin\/materials\/\d+$/.test(p))return adminDeleteMaterial(request,env,Number(p.split('/').pop()));
       if(request.method==='DELETE'&&/^\/api\/admin\/quizzes\/\d+$/.test(p))return adminDeleteQuiz(request,env,Number(p.split('/').pop()));
       if(request.method==='POST'&&p==='/api/admin/templates')return adminCreateTemplate(request,env);
-      if(request.method==='DELETE'&&/^\/api\/admin\/templates\/\d+$/.test(p))return adminDeleteTemplate(request,env,Number(p.split('/').pop()));
+      if(request.method==='DELETE'&&/^\/api\/admin\/templates\/\d+$/.test(p))return await adminDeleteTemplate(request,env,Number(p.split('/').pop()));
       if(request.method==='DELETE'&&/^\/api\/admin\/assignments\/\d+$/.test(p))return adminDeleteAssignment(request,env,Number(p.split('/').pop()));
       if(request.method==='GET'&&p==='/api/admin/settings'){
         if(!(await isAdmin(request,env)))return json({message:'Belum login admin.'},401);
