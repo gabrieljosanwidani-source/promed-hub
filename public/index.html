@@ -152,6 +152,36 @@
       <div class="card" style="margin-top:15px">
   <div class="section-head">
     <div>
+      <h3>Kelola Mata Kuliah</h3>
+      <p>Tambah dan perbarui nama mata kuliah, dosen, serta semester.</p>
+    </div>
+    <button class="btn primary" onclick="openCourseModal()">
+      + Tambah Mata Kuliah
+    </button>
+  </div>
+
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Nama Mata Kuliah</th>
+          <th>Semester</th>
+          <th>Dosen</th>
+          <th>Status</th>
+          <th>Aksi</th>
+        </tr>
+      </thead>
+      <tbody id="adminCoursesTable">
+        <tr>
+          <td colspan="5" class="empty">Memuat mata kuliah...</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+      <div class="card" style="margin-top:15px">
+  <div class="section-head">
+    <div>
       <h3>Upload Template</h3>
       <p>Upload template makalah, PPT, laporan, atau file pendukung lainnya.</p>
     </div>
@@ -258,7 +288,8 @@ const S={
   quizzes:[],
   assignments:[],
   submissions:[],
-  templates:[]
+  templates:[],
+adminCourses:[]
 };
 const $ = id => document.getElementById(String(id).replace(/^#/, ''));
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
@@ -861,7 +892,194 @@ async function saveAssignment(){try{await api('/api/admin/assignments',{method:'
 function openSubmissionModal(id){const a=id?S.assignments.find(x=>x.id===id):S.assignments[0];if(!a){alert('Belum ada tugas.');return}$('modalTitle').textContent='Upload Karya';$('modalDesc').textContent='File ini hanya menjadi pengumpulan milik akun mahasiswa yang sedang login.';$('modalBody').innerHTML=`<div class="field"><label>Tugas</label><select id="fAssign">${S.assignments.map(x=>`<option value="${x.id}" ${x.id===a.id?'selected':''}>${esc(x.title)}</option>`).join('')}</select></div><div class="field"><label>Nama karya</label><input id="fTitle" placeholder="Contoh: Poster Representasi Gender"></div><div class="field"><label>File</label><input id="fFile" type="file" required></div>`;$('modalSave').onclick=saveSubmission;openModal()}
 async function saveSubmission(){const fd=new FormData();fd.set('assignment_id',$('fAssign').value);fd.set('title',$('fTitle').value);const f=$('fFile').files[0];if(!f){alert('Pilih file karya.');return}fd.set('file',f);try{await api('/api/submissions',{method:'POST',body:fd});closeModal();await loadAll();showView('works');alert('Karya berhasil dikumpulkan.')}catch(e){alert(e.message)}}
 async function del(type,id){if(!confirm('Hapus item ini?'))return;const path=type==='material'?`/api/admin/materials/${id}`:type==='quiz'?`/api/admin/quizzes/${id}`:`/api/admin/assignments/${id}`;try{await api(path,{method:'DELETE'});await loadAll()}catch(e){alert(e.message)}}
-async function adminRefresh(){if(S.role!=='admin')return;try{const [sum,students,subs]=await Promise.all([api('/api/admin/summary'),api('/api/admin/students'),api('/api/admin/submissions')]);$('aStudents').textContent=students.items.length;$('aDevices').textContent=`${sum.device_used} / ${sum.max_devices}`;$('aSubs').textContent=sum.submissions;$('maxDevices').value=sum.max_devices;$('maxPerStudent').value=sum.max_devices_per_student;$('studentsTable').innerHTML=students.items.length?students.items.map(x=>`<tr><td><strong>${esc(x.name)}</strong></td><td>${esc(x.npm)}</td><td>${x.devices}</td><td><span class="badge ${x.active?'green':'orange'}">${x.active?'AKTIF':'NONAKTIF'}</span></td><td><button class="btn soft" onclick="resetDevice(${x.id})">Reset Device</button></td></tr>`).join(''):'<tr><td colspan="5" class="empty">Belum ada mahasiswa.</td></tr>';$('adminSubs').innerHTML=subs.items.length?subs.items.map(x=>`<tr><td><strong>${esc(x.name)}</strong></td><td>${esc(x.npm)}</td><td>${esc(x.assignment)}</td><td>${esc(x.title)}</td><td>${new Date(x.uploaded_at).toLocaleString('id-ID')}</td><td><a class="btn soft" href="/api/files/submission/${x.id}" target="_blank">Buka</a></td></tr>`).join(''):'<tr><td colspan="6" class="empty">Belum ada pengumpulan.</td></tr>'}catch(e){console.warn(e)}}
+function renderAdminCourses() {
+  const tbody = $('adminCoursesTable');
+  if (!tbody) return;
+
+  if (!S.adminCourses.length) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="5" class="empty">
+          Belum ada mata kuliah.
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = S.adminCourses.map(course => `
+    <tr>
+      <td>
+        <strong>${esc(course.name)}</strong>
+        <div class="item-meta">${esc(course.description || '')}</div>
+      </td>
+      <td>Semester ${esc(course.semester)}</td>
+      <td>${esc(course.lecturer || 'Belum ditambahkan')}</td>
+      <td>
+        <span class="badge ${course.status === 'active' ? 'green' : 'orange'}">
+          ${course.status === 'active' ? 'AKTIF' : 'NONAKTIF'}
+        </span>
+      </td>
+      <td>
+        <button class="btn soft"
+          onclick="openCourseModal(${Number(course.id)})">
+          Edit
+        </button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function openCourseModal(id = null) {
+  const course = id
+    ? S.adminCourses.find(x => Number(x.id) === Number(id))
+    : null;
+
+  $('modalTitle').textContent = course
+    ? 'Edit Mata Kuliah'
+    : 'Tambah Mata Kuliah';
+
+  $('modalDesc').textContent =
+    'Isi nama mata kuliah, semester, dosen, dan deskripsi.';
+
+  $('modalBody').innerHTML = `
+    <div class="field">
+      <label>Nama Mata Kuliah</label>
+      <input id="cName" value="${esc(course?.name || '')}">
+    </div>
+
+    <div class="field">
+      <label>Semester</label>
+      <select id="cSemester">
+        ${Array.from({length: 8}, (_, i) => {
+          const semester = i + 1;
+          return `<option value="${semester}"
+            ${Number(course?.semester) === semester ? 'selected' : ''}>
+            Semester ${semester}
+          </option>`;
+        }).join('')}
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Nama Dosen</label>
+      <input id="cLecturer"
+        value="${esc(course?.lecturer || '')}"
+        placeholder="Nama dosen">
+    </div>
+
+    <div class="field">
+      <label>Deskripsi</label>
+      <textarea id="cDescription">${esc(course?.description || '')}</textarea>
+    </div>
+  `;
+
+  $('modalSave').onclick = () => saveAdminCourse(course?.id);
+  openModal();
+}
+
+async function saveAdminCourse(id = null) {
+  const data = {
+    name: $('cName').value.trim(),
+    semester: Number($('cSemester').value),
+    lecturer: $('cLecturer').value.trim(),
+    description: $('cDescription').value.trim()
+  };
+
+  if (!data.name) {
+    alert('Nama mata kuliah wajib diisi.');
+    return;
+  }
+
+  try {
+    const result = await api(
+      id ? `/api/admin/courses/${id}` : '/api/admin/courses',
+      {
+        method: id ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      }
+    );
+
+    closeModal();
+    await adminRefresh();
+    await loadAll();
+
+    alert(result.message || 'Mata kuliah berhasil disimpan.');
+  } catch (error) {
+    alert(error.message || 'Gagal menyimpan mata kuliah.');
+  }
+}
+async function adminRefresh() {
+  if (S.role !== 'admin') return;
+
+  try {
+    const [sum, students, subs, courses] = await Promise.all([
+      api('/api/admin/summary'),
+      api('/api/admin/students'),
+      api('/api/admin/submissions'),
+      api('/api/admin/courses')
+    ]);
+
+    // Statistik admin
+    $('aStudents').textContent = students.items.length;
+    $('aDevices').textContent =
+      `${sum.device_used} / ${sum.max_devices}`;
+    $('aSubs').textContent = sum.submissions;
+
+    $('maxDevices').value = sum.max_devices;
+    $('maxPerStudent').value = sum.max_devices_per_student;
+
+    // Daftar mahasiswa
+    $('studentsTable').innerHTML = students.items.length
+      ? students.items.map(x => `
+          <tr>
+            <td><strong>${esc(x.name)}</strong></td>
+            <td>${esc(x.npm)}</td>
+            <td>${x.devices}</td>
+            <td>
+              <span class="badge ${x.active ? 'green' : 'orange'}">
+                ${x.active ? 'AKTIF' : 'NONAKTIF'}
+              </span>
+            </td>
+            <td>
+              <button class="btn soft" onclick="resetDevice(${x.id})">
+                Reset Device
+              </button>
+            </td>
+          </tr>
+        `).join('')
+      : '<tr><td colspan="5" class="empty">Belum ada mahasiswa.</td></tr>';
+
+    // Daftar pengumpulan
+    $('adminSubs').innerHTML = subs.items.length
+      ? subs.items.map(x => `
+          <tr>
+            <td><strong>${esc(x.name)}</strong></td>
+            <td>${esc(x.npm)}</td>
+            <td>${esc(x.assignment)}</td>
+            <td>${esc(x.title)}</td>
+            <td>${new Date(x.uploaded_at).toLocaleString('id-ID')}</td>
+            <td>
+              <a class="btn soft"
+                 href="/api/files/submission/${x.id}"
+                 target="_blank">
+                Buka
+              </a>
+            </td>
+          </tr>
+        `).join('')
+      : '<tr><td colspan="6" class="empty">Belum ada pengumpulan.</td></tr>';
+
+    // Daftar mata kuliah dari database
+    S.adminCourses = courses.items || [];
+    renderAdminCourses();
+
+  } catch (error) {
+    console.error('Admin refresh gagal:', error);
+    alert(error.message || 'Gagal memuat Admin Panel.');
+  }
+}
 async function addStudent(){try{await api('/api/admin/students',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:$('newName').value,npm:$('newNpm').value,birth_date:$('newDob').value})});$('newName').value='';$('newNpm').value='';$('newDob').value='';await adminRefresh();alert('Mahasiswa ditambahkan.')}catch(e){alert(e.message)}}
 async function resetDevice(id){if(!confirm('Reset device mahasiswa ini?'))return;try{await api(`/api/admin/students/${id}/reset-device`,{method:'POST'});await adminRefresh();alert('Device berhasil di-reset.')}catch(e){alert(e.message)}}
 async function saveSettings(){try{const d=await api('/api/admin/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({max_devices:Number($('maxDevices').value),max_devices_per_student:Number($('maxPerStudent').value)})});$('aDevices').textContent=`${d.device_used} / ${d.max_devices}`;alert('Pengaturan device disimpan.')}catch(e){alert(e.message)}}
