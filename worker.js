@@ -118,18 +118,30 @@ async function githubUpload(env, path, file, message) {
 }
 
 async function githubDelete(env, path) {
-  const getResponse = await fetch(githubUrl(path), {
-    headers: githubHeaders(env)
-  });
-
-  if (!getResponse.ok) {
-    if (getResponse.status === 404) return;
-    throw new Error('File GitHub tidak ditemukan.');
+  if (!env.GITHUB_TOKEN) {
+    throw new Error('GITHUB_TOKEN belum dipasang di Cloudflare.');
   }
 
-  const info = await getResponse.json();
+  if (!path || typeof path !== 'string') {
+    throw new Error('Lokasi file GitHub (file_key) kosong atau tidak valid.');
+  }
 
-  const response = await fetch(githubUrl(path), {
+  const url = githubUrl(path);
+  const getResponse = await fetch(url, {
+    headers: githubHeaders(env)
+  });
+  const getResult = await getResponse.json().catch(() => ({}));
+
+  if (!getResponse.ok) {
+    const detail = getResult.message || getResponse.statusText || 'Tidak ada detail dari GitHub.';
+    throw new Error(`GitHub GET gagal (HTTP ${getResponse.status}): ${detail}`);
+  }
+
+  if (!getResult.sha) {
+    throw new Error('GitHub tidak mengembalikan SHA file; file tidak dapat dihapus.');
+  }
+
+  const deleteResponse = await fetch(url, {
     method: 'DELETE',
     headers: {
       ...githubHeaders(env),
@@ -137,17 +149,18 @@ async function githubDelete(env, path) {
     },
     body: JSON.stringify({
       message: `Delete ${path}`,
-      sha: info.sha,
+      sha: getResult.sha,
       branch: GITHUB_BRANCH
     })
   });
+  const deleteResult = await deleteResponse.json().catch(() => ({}));
 
-  if (!response.ok && response.status !== 404) {
-    const result = await response.json().catch(() => ({}));
-    throw new Error(
-      result.message || `GitHub delete gagal (${response.status})`
-    );
+  if (!deleteResponse.ok) {
+    const detail = deleteResult.message || deleteResponse.statusText || 'Tidak ada detail dari GitHub.';
+    throw new Error(`GitHub DELETE gagal (HTTP ${deleteResponse.status}): ${detail}`);
   }
+
+  return { deleted: true };
 }
 async function githubRead(env, path) {
   if (!env.GITHUB_TOKEN) {
