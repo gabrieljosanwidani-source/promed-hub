@@ -826,9 +826,15 @@ async function adminCreateCourse(request, env) {
 
   const result = await env.DB.prepare(`
     INSERT INTO pm_courses
-      (name, semester, lecturer, description, status)
-    VALUES (?, ?, ?, ?, 'active')
-  `).bind(name, semester, lecturer, description).run();
+      (name, semester, lecturer, description, status, created_at)
+    VALUES (?, ?, ?, ?, 'active', ?)
+  `).bind(
+    name,
+    semester,
+    lecturer,
+    description,
+    now()
+  ).run();
 
   return json({
     ok: true,
@@ -836,7 +842,6 @@ async function adminCreateCourse(request, env) {
     id: result.meta.last_row_id
   });
 }
-
 async function adminUpdateCourse(request, env, id) {
   if (!(await isAdmin(request, env))) {
     return json({ message: 'Belum login admin.' }, 401);
