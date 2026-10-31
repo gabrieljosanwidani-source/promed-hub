@@ -781,6 +781,112 @@ async function addStudent(request, env) {
     return json({message:'Mahasiswa ditambahkan.',id:r.meta.last_row_id});
   }catch{return json({message:'NPM sudah terdaftar.'},409)}
 }
+async function listAdminCourses(env, request) {
+  if (!(await isAdmin(request, env))) {
+    return json({ message: 'Belum login admin.' }, 401);
+  }
+
+  const q = await env.DB.prepare(`
+    SELECT id, name, semester, lecturer, description, status
+    FROM pm_courses
+    ORDER BY semester ASC, name ASC
+  `).all();
+
+  return json({ items: q.results || [] });
+}
+
+async function adminCreateCourse(request, env) {
+  if (!(await isAdmin(request, env))) {
+    return json({ message: 'Belum login admin.' }, 401);
+  }
+
+  const data = await request.json().catch(() => ({}));
+
+  const name = String(data.name || '').trim();
+  const semester = Number(data.semester);
+  const lecturer = String(data.lecturer || '').trim();
+  const description = String(data.description || '').trim();
+
+  if (!name || !Number.isInteger(semester) || semester < 1 || semester > 8) {
+    return json({
+      message: 'Nama mata kuliah dan semester 1–8 wajib diisi.'
+    }, 400);
+  }
+
+  const duplicate = await env.DB.prepare(`
+    SELECT id FROM pm_courses
+    WHERE lower(name) = lower(?) AND semester = ?
+  `).bind(name, semester).first();
+
+  if (duplicate) {
+    return json({
+      message: 'Mata kuliah tersebut sudah terdaftar pada semester ini.'
+    }, 409);
+  }
+
+  const result = await env.DB.prepare(`
+    INSERT INTO pm_courses
+      (name, semester, lecturer, description, status)
+    VALUES (?, ?, ?, ?, 'active')
+  `).bind(name, semester, lecturer, description).run();
+
+  return json({
+    ok: true,
+    message: 'Mata kuliah berhasil ditambahkan.',
+    id: result.meta.last_row_id
+  });
+}
+
+async function adminUpdateCourse(request, env, id) {
+  if (!(await isAdmin(request, env))) {
+    return json({ message: 'Belum login admin.' }, 401);
+  }
+
+  const data = await request.json().catch(() => ({}));
+
+  const name = String(data.name || '').trim();
+  const semester = Number(data.semester);
+  const lecturer = String(data.lecturer || '').trim();
+  const description = String(data.description || '').trim();
+
+  if (!name || !Number.isInteger(semester) || semester < 1 || semester > 8) {
+    return json({
+      message: 'Nama mata kuliah dan semester 1–8 wajib diisi.'
+    }, 400);
+  }
+
+  const course = await env.DB.prepare(
+    'SELECT id FROM pm_courses WHERE id = ?'
+  ).bind(id).first();
+
+  if (!course) {
+    return json({ message: 'Mata kuliah tidak ditemukan.' }, 404);
+  }
+
+  const duplicate = await env.DB.prepare(`
+    SELECT id FROM pm_courses
+    WHERE lower(name) = lower(?)
+      AND semester = ?
+      AND id != ?
+  `).bind(name, semester, id).first();
+
+  if (duplicate) {
+    return json({
+      message: 'Nama mata kuliah sudah digunakan pada semester tersebut.'
+    }, 409);
+  }
+
+  await env.DB.prepare(`
+    UPDATE pm_courses
+    SET name = ?, semester = ?, lecturer = ?, description = ?
+    WHERE id = ?
+  `).bind(name, semester, lecturer, description, id).run();
+
+  return json({
+    ok: true,
+    message: 'Mata kuliah berhasil diperbarui.'
+  });
+}
 async function listStudents(env, request) {
   if(!(await isAdmin(request,env)))return json({message:'Belum login admin.'},401);
   const q=await env.DB.prepare(`SELECT s.id,s.npm,s.name,s.active,COUNT(d.id) AS devices FROM pm_students s LEFT JOIN pm_devices d ON d.student_id=s.id AND d.active=1 GROUP BY s.id ORDER BY s.name`).all();
@@ -1063,6 +1169,24 @@ if(request.method==='PUT'&&p==='/api/profile'){
       if(request.method==='GET'&&p==='/api/admin/summary')return getAdminSummary(env,request);
       if(request.method==='GET'&&p==='/api/admin/students')return listStudents(env,request);
       if(request.method==='POST'&&p==='/api/admin/students')return addStudent(request,env);
+      if (request.method === 'GET' && p === '/api/admin/courses') {
+  return listAdminCourses(env, request);
+}
+
+if (request.method === 'POST' && p === '/api/admin/courses') {
+  return adminCreateCourse(request, env);
+}
+
+if (
+  request.method === 'PUT' &&
+  /^\/api\/admin\/courses\/\d+$/.test(p)
+) {
+  return adminUpdateCourse(
+    request,
+    env,
+    Number(p.split('/').pop())
+  );
+}
       if(request.method==='POST'&&/^\/api\/admin\/students\/\d+\/reset-device$/.test(p))return resetStudentDevice(env,request,Number(p.split('/')[4]));
       if(request.method==='POST'&&p==='/api/admin/materials')return adminCreateMaterial(request,env);
       if(request.method==='POST'&&p==='/api/admin/quizzes')return adminCreateQuiz(request,env);
