@@ -1,3 +1,131 @@
+
+Lampiran pengguna
+
+Memproses selama 20s
+Saya melihat masalahnya. Form Upload Template sudah terisi, tetapi server menolak permintaan dengan pesan “Belum login admin.”
+
+Artinya, tampilan Admin Panel masih terbuka, tetapi autentikasi admin yang dibutuhkan saat menyimpan template tidak dikenali.
+
+Kita coba perbarui sesi admin dahulu.
+
+Klik Oke pada pesan tersebut.
+
+Tutup jendela Upload Template dengan tombol Batal.
+
+Muat ulang website menggunakan Ctrl + Shift + R.
+
+Logout, lalu login kembali melalui tab Admin.
+
+Buka Admin Panel dan coba unggah template lagi.
+
+Jangan mengubah file atau kode dahulu. Kirim screenshot setelah login admin kembali, sebelum menekan tombol Simpan.
+
+sudah bisa, tetapi cara menghapus nya bagaimana
+
+Memproses selama 25s
+Untuk saat ini, fitur menghapus template belum tersedia di ProMed Hub. Tombol yang ada baru untuk menambahkan template. Kode backend juga belum memiliki perintah khusus untuk menghapus template. 
+Teks yang ditempel (1)(6).txt
+
+Solusinya adalah menambahkan tombol Hapus Template khusus Admin, lengkap dengan konfirmasi sebelum menghapus. File di GitHub privat dan datanya di database juga akan dihapus agar tidak menyisakan template rusak.
+
+Kita lanjutkan dengan menambahkan fitur tersebut tanpa mengganggu fitur upload yang sudah berhasil.
+
+lanjut
+
+Memproses selama 1m 50s
+Sudah saya siapkan pembaruan fitur Hapus Template untuk ProMed Hub. Sekarang Admin Panel akan memiliki daftar template beserta tombol Hapus.
+
+Tidak perlu membuat tabel database baru atau mengaktifkan R2.
+
+1. Perbarui backend terlebih dahulu
+worker.js — versi terbaru
+
+Backend dengan API penghapusan template.
+
+Unduh file worker.js
+
+Langkahnya:
+
+Buka GitHub repository promed-hub.
+
+Buka file worker.js.
+
+Klik ikon pensil untuk mengedit.
+
+Buka file hasil unduhan, salin seluruh isinya.
+
+Ganti seluruh isi worker.js di GitHub.
+
+Commit dengan pesan:
+
+Add template deletion API
+2. Setelah backend berhasil di-commit
+Baru kita perbarui tampilan website menggunakan file berikut:
+
+Unduh index.html — versi terbaru
+
+File ini menambahkan tabel Daftar Template di Admin Panel, lengkap dengan tombol Hapus.
+
+Pemeriksaan sintaks berhasil Kedua file sudah diperiksa sintaks JavaScript-nya.
+
+Kerjakan langkah 1 dahulu dan kirim screenshot setelah worker.js berhasil di-commit. Saya pandu tahap berikutnya setelah itu.
+
+
+promed-index-template-delete.txt
+Dokumen
+
+promed-worker-template-delete.txt
+Dokumen
+Lampiran pengguna
+Sudah benar! Pengaturan commit-nya sudah sesuai.
+
+Commit message: Update worker.js ✅
+
+Extended description: Add template deletion API ✅
+
+Commit directly to the main branch: terpilih ✅
+
+Sekarang klik tombol hijau Commit changes.
+
+Setelah berhasil, kirim screenshot hasil commit. Kita lanjut memperbarui public/index.html agar tombol Hapus Template muncul di Admin Panel.
+
+Lampiran pengguna
+Backend berhasil di-commit
+Saya melihat commit Update worker.js sudah berhasil masuk ke branch main. Sekarang kita lanjut ke bagian tampilan website.
+
+Langkah 2 — Perbarui public/index.html
+File index.html terbaru
+
+Sudah dilengkapi daftar template dan tombol Hapus.
+
+Unduh promed-index-template-delete.txt
+
+Ikuti langkah berikut:
+
+Buka repository GitHub promed-hub.
+
+Klik folder public.
+
+Buka file index.html.
+
+Klik ikon pensil untuk mengedit.
+
+Buka file unduhan tadi menggunakan Notepad.
+
+Tekan Ctrl + A, lalu Ctrl + C.
+
+Kembali ke GitHub, hapus seluruh isi lama index.html, lalu tekan Ctrl + V.
+
+Klik Commit changes langsung ke branch main.
+
+Pesan commit:
+
+Add template deletion interface
+Setelah selesai, kirim screenshot hasil commit. Kita tes tombol Hapus Template di Admin Panel.
+
+
+promed-index-template-delete.txt
+Dokumen
 <!doctype html>
 <html lang="id">
 <head>
@@ -161,6 +289,20 @@
     + Tambah Template
   </button>
 </div>
+      <div class="card" style="margin-top:15px">
+        <div class="section-head">
+          <div>
+            <h3>Daftar Template</h3>
+            <p>Kelola template yang sudah diunggah. Penghapusan akan menghapus file dan datanya.</p>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="table">
+            <thead><tr><th>Judul Template</th><th>Mata Kuliah</th><th>File</th><th>Aksi</th></tr></thead>
+            <tbody id="adminTemplatesTable"><tr><td colspan="4" class="empty">Belum ada template.</td></tr></tbody>
+          </table>
+        </div>
+      </div>
       <div class="card" style="margin-top:15px"><div class="section-head"><div><h3>Daftar Mahasiswa</h3><p>Reset device digunakan ketika mahasiswa perlu berpindah perangkat.</p></div></div><div class="table-wrap"><table class="table"><thead><tr><th>Nama</th><th>NPM</th><th>Device</th><th>Status</th><th>Aksi</th></tr></thead><tbody id="studentsTable"></tbody></table></div></div>
       <div class="card" style="margin-top:15px"><div class="section-head"><div><h3>Semua Pengumpulan</h3><p>Admin dapat melihat seluruh karya mahasiswa.</p></div></div><div class="table-wrap"><table class="table"><thead><tr><th>Mahasiswa</th><th>NPM</th><th>Tugas</th><th>Karya</th><th>Waktu</th><th>Aksi</th></tr></thead><tbody id="adminSubs"></tbody></table></div></div>
     </section>
@@ -502,7 +644,7 @@ function renderAll(){
  $('statM').textContent=S.materials.length;$('statQ').textContent=S.quizzes.length;$('statA').textContent=S.assignments.length;$('statD').textContent=S.role==='admin'?'':S.user.npm? '1':'—';
  $('recentM').innerHTML=S.materials.slice(0,3).map(x=>item(x.title,x.course,x.meeting||'Materi')).join('')||'<div class="empty">Belum ada materi.</div>';
  $('recentQ').innerHTML=S.quizzes.slice(0,3).map(x=>item(x.title,x.course,x.meeting||'Kuis')).join('')||'<div class="empty">Belum ada kuis.</div>';
- renderCourses(),renderMaterials(),renderQuizzes(),renderAssignments(),renderWorks();
+ renderCourses(),renderMaterials(),renderQuizzes(),renderAssignments(),renderTemplates(),renderAdminTemplates(),renderWorks();
 }
   function renderCourses(){
   const q = ($('courseSearch').value || '').trim().toLowerCase();
@@ -692,10 +834,36 @@ function renderAssignments(){
      >Buka Template</a>`
   : `<span class="badge orange">File belum diupload</span>`
           }
+
+          ${S.role === 'admin'
+            ? `<button class="btn danger" style="margin-left:8px" onclick="deleteTemplate(${x.id})">Hapus</button>`
+            : ''}
         </div>
       `).join('')
     : '<div class="card empty">Belum ada template untuk mata kuliah ini.</div>';
 }
+function renderAdminTemplates(){
+  const tbody = $('adminTemplatesTable');
+  if(!tbody) return;
+
+  if(S.role !== 'admin'){
+    tbody.innerHTML = '<tr><td colspan="4" class="empty">Masuk sebagai admin untuk mengelola template.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = S.templates.length
+    ? S.templates.map(x => {
+        const course = S.courses.find(c => Number(c.id) === Number(x.course_id));
+        return `<tr>
+          <td><strong>${esc(x.title)}</strong><div class="item-meta">${esc(x.description || '')}</div></td>
+          <td>${esc(course?.name || 'Mata kuliah')}</td>
+          <td>${esc(x.file_name || '-')}</td>
+          <td><button class="btn danger" onclick="deleteTemplate(${x.id})">Hapus</button></td>
+        </tr>`;
+      }).join('')
+    : '<tr><td colspan="4" class="empty">Belum ada template yang diunggah.</td></tr>';
+}
+
 function renderCalendar(){$('calendarCards').innerHTML=S.assignments.length?S.assignments.slice().sort((a,b)=>(a.deadline||'9999').localeCompare(b.deadline||'9999')).map(x=>`<div class="card"><span class="badge blue">${x.deadline?esc(x.deadline):'TBA'}</span><h4 style="margin:12px 0 4px">${esc(x.title)}</h4><p style="margin:0;color:var(--muted);font-size:12px">${esc(x.course)}</p></div>`).join(''):'<div class="card empty">Belum ada agenda.</div>'}
 function renderWorks(){$('worksTable').innerHTML=S.submissions.length?S.submissions.map(x=>`<tr><td><strong>${esc(x.title)}</strong><div class="item-meta">${esc(x.file_name)}</div></td><td>${esc(x.assignment)}</td><td>${new Date(x.uploaded_at).toLocaleString('id-ID')}</td><td><a class="btn soft" href="/api/files/submission/${x.id}" target="_blank">Buka</a></td></tr>`).join(''):'<tr><td colspan="4" class="empty">Belum ada karya yang dikumpulkan.</td></tr>'}
   function openTemplateModal(){
@@ -764,6 +932,23 @@ async function saveTemplate(){
     alert(e.message || 'Upload template gagal.');
   }
 }
+async function deleteTemplate(id){
+  const template = S.templates.find(x => Number(x.id) === Number(id));
+  const name = template?.title || 'template ini';
+
+  if(!confirm(`Yakin ingin menghapus ${name}? File dan data template akan dihapus permanen.`)){
+    return;
+  }
+
+  try{
+    const result = await api(`/api/admin/templates/${id}`, { method:'DELETE' });
+    await loadAll();
+    alert(result.message || 'Template berhasil dihapus.');
+  }catch(error){
+    alert(error.message || 'Template gagal dihapus.');
+  }
+}
+
 function openMaterialModal(){$('modalTitle').textContent='Upload Materi';$('modalDesc').textContent='Materi akan langsung dipublikasikan untuk semua mahasiswa setelah disimpan.';$('modalBody').innerHTML=`<div class="field"><label>Judul materi</label><input id="fTitle" placeholder="Contoh: Pertemuan 4 — Media Baru"></div><div class="field"><label>Mata kuliah</label><input id="fCourse" placeholder="Komunikasi Massa"></div><div class="field"><label>Pertemuan</label><input id="fMeeting" placeholder="Pertemuan 4"></div><div class="field"><label>Sumber/link kampus (opsional)</label><input id="fSource" placeholder="https://..."></div><div class="field"><label>File PDF/PPT/DOCX</label><input id="fFile" type="file" accept=".pdf,.ppt,.pptx,.doc,.docx"></div>`;$('modalSave').onclick=saveMaterial;openModal()}
 async function saveMaterial() {
   try {
