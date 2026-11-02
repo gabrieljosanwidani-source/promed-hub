@@ -274,6 +274,60 @@ body {
   }
 }
 
+/* Penyempurnaan kartu statistik Dashboard */
+#dashboard .stats {
+  gap: 12px;
+  margin: 16px 0;
+}
+
+#dashboard .stats .stat {
+  min-height: 96px;
+  padding: 17px 18px;
+  border: 1px solid #dfe5df;
+  border-left: 3px solid #78947b;
+  border-radius: 11px;
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(17, 24, 18, .035);
+}
+
+#dashboard .stats .stat p {
+  color: #68736a;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 5px;
+}
+
+#dashboard .stats .stat strong {
+  color: #17221b;
+  font-size: 27px;
+  line-height: 1.2;
+}
+
+#dashboard .stats .ico {
+  width: 40px;
+  height: 40px;
+  border-radius: 9px;
+  background: #eaf0e9;
+  color: #527d58;
+  font-size: 17px;
+}
+
+/* Penyesuaian statistik di HP */
+@media (max-width: 760px) {
+  #dashboard .stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  #dashboard .stats .stat {
+    min-height: 88px;
+    padding: 13px;
+  }
+
+  #dashboard .stats .stat strong {
+    font-size: 24px;
+  }
+}
 </style>
 </head>
 <body>
