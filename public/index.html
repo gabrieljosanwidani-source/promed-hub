@@ -612,6 +612,128 @@ body {
   }
 }
 
+
+/* =================================
+   HALAMAN TUGAS — DARK CAMPUS
+   ================================= */
+
+#assignments .section-head {
+  margin-top: 0;
+  margin-bottom: 17px;
+  align-items: center;
+}
+
+#assignments .section-head h3 {
+  font-size: 21px;
+  color: #17221b;
+}
+
+#assignments .section-head p {
+  margin-top: 5px;
+  line-height: 1.5;
+}
+
+/* Susunan kartu tugas */
+#assignmentCards {
+  gap: 14px;
+  align-items: stretch;
+}
+
+#assignmentCards .taskcard {
+  min-height: 0;
+  padding: 19px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  border: 1px solid #dfe5df;
+  border-left: 3px solid #78947b;
+  border-radius: 11px;
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(17, 24, 18, .035);
+}
+
+#assignmentCards .taskcard .badge.orange {
+  margin-bottom: 3px;
+  background: #f6eee3;
+  color: #93602b;
+  font-size: 10px;
+}
+
+#assignmentCards .taskcard h4 {
+  margin: 10px 0 6px;
+  color: #17221b;
+  font-size: 16px;
+  line-height: 1.4;
+}
+
+#assignmentCards .taskcard p {
+  margin: 0 0 9px;
+  color: #68736a;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+/* Tombol pengumpulan dan hapus */
+#assignmentCards .taskcard .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  margin-top: 5px;
+  padding: 9px 13px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+#assignmentCards .taskcard .btn.primary {
+  background: #527d58;
+  color: #ffffff;
+}
+
+#assignmentCards .taskcard .btn.primary:hover {
+  background: #345b3c;
+}
+
+#assignmentCards .taskcard .btn.danger {
+  background: #f9eded;
+  color: #a13d3d;
+}
+
+/* Pesan ketika belum ada tugas */
+#assignmentCards > .card.empty {
+  grid-column: 1 / -1;
+  min-height: 110px;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  border: 1px dashed #cbd7cb;
+  border-radius: 11px;
+  background: #f8faf7;
+  box-shadow: none;
+  color: #68736a;
+  font-size: 13px;
+}
+
+/* Tampilan HP */
+@media (max-width: 760px) {
+  #assignments .section-head {
+    align-items: flex-start;
+  }
+
+  #assignmentCards {
+    grid-template-columns: 1fr;
+  }
+
+  #assignmentCards .taskcard {
+    padding: 16px;
+  }
+
+  #assignmentCards > .card.empty {
+    min-height: 95px;
+  }
+}
+
 </style>
 </head>
 <body>
