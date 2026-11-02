@@ -1483,6 +1483,21 @@ body {
   }
 }
 
+/* Posisi ikon statistik seperti referensi */
+#dashboard .stats .stat {
+  justify-content: flex-start;
+  gap: 14px;
+}
+
+#dashboard .stats .stat .ico {
+  flex-shrink: 0;
+}
+
+@media (max-width: 760px) {
+  #dashboard .stats .stat {
+    gap: 10px;
+  }
+}
 </style>
 </head>
 <body>
@@ -1554,7 +1569,36 @@ body {
     </div>
   </div>
 </div>
-      <div class="grid stats"><div class="card stat"><div><p>Materi</p><strong id="statM">0</strong></div><div class="ico">▣</div></div><div class="card stat"><div><p>Kuis</p><strong id="statQ">0</strong></div><div class="ico">✓</div></div><div class="card stat"><div><p>Tugas</p><strong id="statA">0</strong></div><div class="ico">▤</div></div><div class="card stat"><div><p>Device terdaftar</p><strong id="statD">—</strong></div><div class="ico">◎</div></div></div>
+      <div class="grid stats">
+  <div class="card stat">
+    <div class="ico">▣</div>
+    <div>
+      <p>Materi</p>
+      <strong id="statM">0</strong>
+    </div>
+  </div>
+  <div class="card stat">
+    <div class="ico">✓</div>
+    <div>
+      <p>Kuis</p>
+      <strong id="statQ">0</strong>
+    </div>
+  </div>
+  <div class="card stat">
+    <div class="ico">▤</div>
+    <div>
+      <p>Tugas</p>
+      <strong id="statA">0</strong>
+    </div>
+  </div>
+  <div class="card stat">
+    <div class="ico">◎</div>
+    <div>
+      <p>Device Terdaftar</p>
+      <strong id="statD">—</strong>
+    </div>
+  </div>
+</div>
       <div class="card" style="margin-top:18px">
   <div class="section-head">
     <div>
