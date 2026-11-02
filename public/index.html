@@ -1743,6 +1743,83 @@ body {
     padding: 15px;
   }
 }
+/* LOGO PROMED HUB */
+.brand .mark.brand-logo {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  background: #527d58;
+}
+
+.brand-logo svg {
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: #f2f8ef;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* IKON NOTIFIKASI HEADER */
+.notification-btn {
+  position: relative;
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #dfe5df;
+  border-radius: 11px;
+  background: #ffffff;
+  color: #527d58;
+  cursor: pointer;
+  transition: .2s ease;
+}
+
+.notification-btn:hover {
+  background: #eaf0e9;
+  border-color: #b7c9b8;
+}
+
+.notification-btn svg {
+  width: 21px;
+  height: 21px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.notification-count {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  display: grid;
+  place-items: center;
+  border: 2px solid #ffffff;
+  border-radius: 20px;
+  background: #9ddd54;
+  color: #17221b;
+  font-size: 9px;
+  font-weight: 900;
+}
+
+@media (max-width: 760px) {
+  .notification-btn {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+  }
+
+  .top {
+    gap: 10px;
+  }
+}
 </style>
 </head>
 <body>
@@ -1769,7 +1846,20 @@ body {
 
 <div id="app" class="app">
   <aside id="sidebar" class="sidebar">
-    <div class="brand"><div class="mark">PM</div><div><h2>ProMed Hub</h2><p>JOSAN X PROMED</p></div></div>
+    <div class="brand">
+  <div class="mark brand-logo" aria-label="Logo ProMed Hub">
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="3" y="7" width="13" height="12" rx="2"/>
+      <path d="m16 11 5-3v10l-5-3"/>
+      <circle cx="9.5" cy="13" r="3"/>
+      <path d="M7 4h7"/>
+    </svg>
+  </div>
+  <div>
+    <h2>ProMed Hub</h2>
+    <p>JOSAN X PROMED</p>
+  </div>
+</div>
     <nav class="nav">
       <button class="active" data-view="dashboard">⌂ <span>Dashboard</span></button>
       <button data-view="materials">▣ <span>Materi</span></button>
@@ -1802,6 +1892,20 @@ body {
       <small id="userMeta">-</small>
     </div>
   </div>
+
+  <button
+    type="button"
+    class="notification-btn"
+    onclick="openNotifications()"
+    aria-label="Lihat pengumuman terbaru"
+    title="Notifikasi"
+  >
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Z"/>
+      <path d="M10 21h4"/>
+    </svg>
+    <span id="notificationCount" class="notification-count" style="display:none">0</span>
+  </button>
 </header>
 
     <section id="dashboard" class="view active content">
@@ -2363,7 +2467,20 @@ function showView(id, preserveCourse=false){
   if(id==='profile' && S.role==='student') loadProfile();
 }
 document.querySelectorAll('.nav button').forEach(b=>b.addEventListener('click',()=>showView(b.dataset.view)));function toggleSide(){$('sidebar').classList.toggle('open')}
+function openNotifications() {
+  showView('dashboard');
 
+  setTimeout(() => {
+    const announcementBox = $('announcementList');
+
+    if (announcementBox) {
+      announcementBox.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center'
+      });
+    }
+  }, 150);
+}
 function setProfilePhotoView(hasPhoto, cacheKey='') {
   const photo = $('profilePhoto');
   const placeholder = $('profileAvatarPlaceholder');
@@ -2548,7 +2665,15 @@ renderWorks();
 }
  function renderAnnouncements() {
   const box = $('announcementList');
-  if (!box) return;
+const count = $('notificationCount');
+
+if (count) {
+  const total = S.announcements.length;
+  count.textContent = total > 9 ? '9+' : String(total);
+  count.style.display = total ? 'grid' : 'none';
+}
+
+if (!box) return;
 
   box.innerHTML = S.announcements.length
     ? S.announcements.slice(0, 5).map(x => `
