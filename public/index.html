@@ -1024,6 +1024,164 @@ body {
 #profilePhotoInput::file-selector-button:hover {
   background: #dce9dc;
 }
+
+/* =================================
+   ADMIN PANEL — DARK CAMPUS
+   ================================= */
+
+/* Judul Admin Panel */
+#admin > .section-head {
+  margin-top: 0;
+  margin-bottom: 16px;
+  align-items: center;
+}
+
+#admin > .section-head h3 {
+  font-size: 21px;
+  color: #17221b;
+}
+
+#admin > .section-head p {
+  margin-top: 5px;
+  line-height: 1.5;
+}
+
+/* Statistik Admin */
+#admin > .grid.stats {
+  gap: 12px;
+  margin: 16px 0 20px;
+}
+
+#admin > .grid.stats .stat {
+  min-height: 94px;
+  padding: 17px;
+  border: 1px solid #dfe5df;
+  border-left: 3px solid #78947b;
+  border-radius: 11px;
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(17, 24, 18, .035);
+}
+
+#admin > .grid.stats .stat p {
+  color: #68736a;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+#admin > .grid.stats .stat strong {
+  margin-top: 5px;
+  color: #17221b;
+  font-size: 25px;
+}
+
+#admin > .grid.stats .ico {
+  width: 40px;
+  height: 40px;
+  border-radius: 9px;
+  background: #eaf0e9;
+  color: #527d58;
+}
+
+/* Panel Pengaturan Device dan Tambah Mahasiswa */
+#admin > .grid.cols2 {
+  gap: 14px;
+  align-items: stretch;
+}
+
+#admin > .grid.cols2 > .card {
+  padding: 19px;
+  border: 1px solid #dfe5df;
+  border-radius: 11px;
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(17, 24, 18, .035);
+}
+
+#admin > .grid.cols2 > .card .section-head {
+  margin: 4px 0 16px;
+  align-items: flex-start;
+}
+
+#admin > .grid.cols2 > .card .section-head h3 {
+  font-size: 17px;
+  color: #17221b;
+}
+
+#admin > .grid.cols2 > .card .section-head p {
+  margin-top: 5px;
+  line-height: 1.5;
+}
+
+/* Label dan input */
+#admin > .grid.cols2 .field {
+  gap: 7px;
+  margin: 12px 0;
+}
+
+#admin > .grid.cols2 .field label {
+  color: #526254;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+#admin > .grid.cols2 .field input {
+  width: 100%;
+  min-height: 43px;
+  padding: 10px 12px;
+  border: 1px solid #d9e2d9;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #253128;
+  font-size: 13px;
+}
+
+#admin > .grid.cols2 .field input:focus {
+  border-color: #527d58;
+  outline: 2px solid rgba(82, 125, 88, .12);
+}
+
+/* Tombol panel */
+#admin > .grid.cols2 > .card > .btn.primary {
+  min-height: 40px;
+  padding: 10px 15px;
+  border-radius: 7px;
+  background: #527d58;
+  color: #ffffff;
+  font-size: 12px;
+}
+
+#admin > .grid.cols2 > .card > .btn.primary:hover {
+  background: #345b3c;
+}
+
+/* Tampilan HP */
+@media (max-width: 760px) {
+  #admin > .section-head {
+    align-items: flex-start;
+  }
+
+  #admin > .grid.stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  #admin > .grid.stats .stat {
+    min-height: 85px;
+    padding: 13px;
+  }
+
+  #admin > .grid.stats .stat strong {
+    font-size: 22px;
+  }
+
+  #admin > .grid.cols2 {
+    grid-template-columns: 1fr;
+  }
+
+  #admin > .grid.cols2 > .card {
+    padding: 16px;
+  }
+}
+
 </style>
 </head>
 <body>
