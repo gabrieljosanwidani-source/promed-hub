@@ -1182,6 +1182,162 @@ body {
   }
 }
 
+/* =================================
+   TABEL ADMIN — DARK CAMPUS
+   ================================= */
+
+/* Kartu pembungkus setiap bagian */
+#admin > .card {
+  margin-top: 15px !important;
+  padding: 18px;
+  border: 1px solid #dfe5df;
+  border-radius: 11px;
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(17, 24, 18, .035);
+}
+
+/* Judul setiap bagian */
+#admin > .card .section-head {
+  margin: 3px 0 14px;
+  align-items: center;
+}
+
+#admin > .card .section-head h3 {
+  color: #17221b;
+  font-size: 17px;
+}
+
+#admin > .card .section-head p {
+  margin-top: 5px;
+  color: #68736a;
+  line-height: 1.5;
+}
+
+/* Area tabel */
+#admin .table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid #e3e9e2;
+  border-radius: 9px;
+  background: #ffffff;
+}
+
+#admin .table {
+  width: 100%;
+  min-width: 720px;
+  border-collapse: collapse;
+}
+
+/* Header tabel */
+#admin .table th {
+  padding: 13px 14px;
+  background: #f2f5f1;
+  color: #526254;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .3px;
+  white-space: nowrap;
+  border-bottom: 1px solid #dfe5df;
+}
+
+/* Isi tabel */
+#admin .table td {
+  padding: 13px 14px;
+  color: #253128;
+  font-size: 12px;
+  line-height: 1.5;
+  vertical-align: middle;
+  border-bottom: 1px solid #e7ece6;
+}
+
+#admin .table td strong {
+  color: #17221b;
+  font-weight: 750;
+}
+
+#admin .table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+#admin .table tbody tr:hover td {
+  background: #f8faf7;
+}
+
+/* Tombol aksi dalam tabel */
+#admin .table td .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  margin: 2px 4px 2px 0;
+  padding: 7px 11px;
+  border-radius: 7px;
+  font-size: 11px;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+#admin .table td .btn.soft {
+  background: #eaf0e9;
+  color: #345b3c;
+}
+
+#admin .table td .btn.danger {
+  background: #faeeee;
+  color: #a13d3d;
+}
+
+#admin .table td .btn.primary {
+  background: #527d58;
+  color: #ffffff;
+}
+
+/* Label status */
+#admin .table .badge {
+  padding: 5px 9px;
+  font-size: 10px;
+}
+
+/* Pesan tabel kosong */
+#admin .table .empty {
+  padding: 22px;
+  text-align: center;
+  color: #68736a;
+  font-size: 12px;
+}
+
+/* Tombol tambah template */
+#admin > .card > .btn.primary {
+  min-height: 39px;
+  padding: 9px 14px;
+  border-radius: 7px;
+  font-size: 12px;
+}
+
+/* Tampilan HP */
+@media (max-width: 760px) {
+  #admin > .card {
+    padding: 14px;
+  }
+
+  #admin > .card .section-head {
+    align-items: flex-start;
+  }
+
+  #admin > .card .section-head .btn {
+    max-width: 100%;
+  }
+
+  #admin .table {
+    min-width: 720px;
+  }
+
+  #admin .table th,
+  #admin .table td {
+    padding: 11px 12px;
+  }
+}
+
 </style>
 </head>
 <body>
