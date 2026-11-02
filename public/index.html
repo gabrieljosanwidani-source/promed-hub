@@ -1498,6 +1498,17 @@ body {
     gap: 10px;
   }
 }
+/* Ikon SVG Dashboard */
+#dashboard .stats .ico svg {
+  width: 25px;
+  height: 25px;
+  display: block;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
 </style>
 </head>
 <body>
@@ -1569,36 +1580,51 @@ body {
     </div>
   </div>
 </div>
-      <div class="grid stats">
+      
+<div class="grid stats">
   <div class="card stat">
-    <div class="ico">▣</div>
-    <div>
-      <p>Materi</p>
-      <strong id="statM">0</strong>
+    <div class="ico">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 7v14"/>
+        <path d="M3 5h5a4 4 0 0 1 4 4v12a4 4 0 0 0-4-4H3z"/>
+        <path d="M21 5h-5a4 4 0 0 0-4 4v12a4 4 0 0 1 4-4h5z"/>
+      </svg>
     </div>
+    <div><p>Materi</p><strong id="statM">0</strong></div>
   </div>
+
   <div class="card stat">
-    <div class="ico">✓</div>
-    <div>
-      <p>Kuis</p>
-      <strong id="statQ">0</strong>
+    <div class="ico">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="4" y="4" width="16" height="16" rx="2"/>
+        <path d="m8 12 2.5 2.5L16 9"/>
+      </svg>
     </div>
+    <div><p>Kuis</p><strong id="statQ">0</strong></div>
   </div>
+
   <div class="card stat">
-    <div class="ico">▤</div>
-    <div>
-      <p>Tugas</p>
-      <strong id="statA">0</strong>
+    <div class="ico">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="m12 3 9 5-9 5-9-5z"/>
+        <path d="m3 12 9 5 9-5"/>
+        <path d="m3 16 9 5 9-5"/>
+      </svg>
     </div>
+    <div><p>Tugas</p><strong id="statA">0</strong></div>
   </div>
+
   <div class="card stat">
-    <div class="ico">◎</div>
-    <div>
-      <p>Device Terdaftar</p>
-      <strong id="statD">—</strong>
+    <div class="ico">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="5" y="4" width="14" height="12" rx="1"/>
+        <path d="M2 20h20l-2-4H4z"/>
+      </svg>
     </div>
+    <div><p>Device Terdaftar</p><strong id="statD">—</strong></div>
   </div>
 </div>
+
       <div class="card" style="margin-top:18px">
   <div class="section-head">
     <div>
