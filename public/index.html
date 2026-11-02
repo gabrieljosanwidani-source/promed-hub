@@ -907,30 +907,77 @@ function renderAdminCourses() {
     return;
   }
 
-  tbody.innerHTML = S.adminCourses.map(course => `
-    <tr>
-      <td>
-        <strong>${esc(course.name)}</strong>
-        <div class="item-meta">${esc(course.description || '')}</div>
-      </td>
-      <td>Semester ${esc(course.semester)}</td>
-      <td>${esc(course.lecturer || 'Belum ditambahkan')}</td>
-      <td>
-        <span class="badge ${course.status === 'active' ? 'green' : 'orange'}">
-          ${course.status === 'active' ? 'AKTIF' : 'NONAKTIF'}
-        </span>
-      </td>
-      <td>
-        <button class="btn soft"
-          onclick="openCourseModal(${Number(course.id)})">
-          Edit
-        </button>
-      </td>
-    </tr>
-  `).join('');
+  tbody.innerHTML = S.adminCourses.map(course => {
+    const isActive = course.status === 'active';
+
+    return `
+      <tr>
+        <td>
+          <strong>${esc(course.name)}</strong>
+          <div class="item-meta">${esc(course.description || '')}</div>
+        </td>
+        <td>Semester ${esc(course.semester)}</td>
+        <td>${esc(course.lecturer || 'Belum ditambahkan')}</td>
+        <td>
+          <span class="badge ${isActive ? 'green' : 'orange'}">
+            ${isActive ? 'AKTIF' : 'NONAKTIF'}
+          </span>
+        </td>
+        <td>
+          <button class="btn soft"
+            onclick="openCourseModal(${Number(course.id)})">
+            Edit
+          </button>
+          <button class="btn ${isActive ? 'danger' : 'ok'}"
+            onclick="toggleCourseStatus(${Number(course.id)})">
+            ${isActive ? 'Nonaktifkan' : 'Aktifkan'}
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join('');
 }
 
-function openCourseModal(id = null) {
+async function toggleCourseStatus(id) {
+  const course = S.adminCourses.find(
+    x => Number(x.id) === Number(id)
+  );
+
+  if (!course) {
+    alert('Mata kuliah tidak ditemukan.');
+    return;
+  }
+
+  const nextStatus =
+    course.status === 'active' ? 'inactive' : 'active';
+
+  const action = nextStatus === 'inactive'
+    ? 'menonaktifkan'
+    : 'mengaktifkan kembali';
+
+  if (!confirm(`Yakin ingin ${action} mata kuliah "${course.name}"?`)) {
+    return;
+  }
+
+  try {
+    const result = await api(
+      `/api/admin/courses/${id}/status`,
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: nextStatus })
+      }
+    );
+
+    await adminRefresh();
+    await loadAll();
+
+    alert(result.message || 'Status mata kuliah berhasil diperbarui.');
+  } catch (error) {
+    alert(error.message || 'Gagal mengubah status mata kuliah.');
+  }
+}
+ function openCourseModal(id = null) { 
   const course = id
     ? S.adminCourses.find(x => Number(x.id) === Number(id))
     : null;
