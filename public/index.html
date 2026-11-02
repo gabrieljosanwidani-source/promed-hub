@@ -57,6 +57,19 @@
       <div class="card" style="margin-top:18px">
   <div class="section-head">
     <div>
+      <h3>📢 Pengumuman Terbaru</h3>
+      <p>Informasi terbaru dari Admin ProMed.</p>
+    </div>
+    <span class="badge blue">INFORMASI</span>
+  </div>
+
+  <div id="announcementList">
+    <div class="empty">Memuat pengumuman...</div>
+  </div>
+</div>
+      <div class="card" style="margin-top:18px">
+  <div class="section-head">
+    <div>
       <h3>Mata Kuliah</h3>
       <p>Pilih mata kuliah berdasarkan semester atau cari namanya.</p>
     </div>
@@ -182,6 +195,40 @@
       <div class="card" style="margin-top:15px">
   <div class="section-head">
     <div>
+      <h3>📢 Kelola Pengumuman</h3>
+      <p>Buat dan atur informasi untuk seluruh mahasiswa.</p>
+    </div>
+    <button class="btn primary"
+      onclick="openAnnouncementModal()">
+      + Buat Pengumuman
+    </button>
+  </div>
+
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Judul</th>
+          <th>Kategori</th>
+          <th>Status</th>
+          <th>Penting</th>
+          <th>Tanggal</th>
+          <th>Aksi</th>
+        </tr>
+      </thead>
+      <tbody id="adminAnnouncementsTable">
+        <tr>
+          <td colspan="6" class="empty">
+            Memuat pengumuman...
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+      <div class="card" style="margin-top:15px">
+  <div class="section-head">
+    <div>
       <h3>Upload Template</h3>
       <p>Upload template makalah, PPT, laporan, atau file pendukung lainnya.</p>
     </div>
@@ -289,6 +336,8 @@ const S={
   assignments:[],
   submissions:[],
   templates:[],
+announcements:[],
+adminAnnouncements:[],
 adminCourses:[]
 };
 const $ = id => document.getElementById(String(id).replace(/^#/, ''));
@@ -356,22 +405,25 @@ async function bootApp(){
  await loadAll();showView('dashboard');
 }
 async function logout(){await api(S.role==='admin'?'/api/admin/logout':'/api/logout',{method:'POST'}).catch(()=>{});location.reload()}
-async function loadAll(){
-  const [c,m,q,a,s,t]=await Promise.all([
-    api('/api/courses'),
-    api('/api/materials'),
-    api('/api/quizzes'),
-    api('/api/assignments'),
-    api('/api/submissions'),
-    api('/api/templates')
-  ]);
+async function loadAll() {
+  const [c, m, q, a, s, t, announcements] =
+    await Promise.all([
+      api('/api/courses'),
+      api('/api/materials'),
+      api('/api/quizzes'),
+      api('/api/assignments'),
+      api('/api/submissions'),
+      api('/api/templates'),
+      api('/api/announcements')
+    ]);
 
-  S.courses=c.items;
-  S.materials=m.items;
-  S.quizzes=q.items;
-  S.assignments=a.items;
-  S.submissions=s.items;
-  S.templates=t.items;
+  S.courses = c.items || [];
+  S.materials = m.items || [];
+  S.quizzes = q.items || [];
+  S.assignments = a.items || [];
+  S.submissions = s.items || [];
+  S.templates = t.items || [];
+  S.announcements = announcements.items || [];
 
   renderAll();
 }
@@ -547,8 +599,76 @@ function renderAll(){
  $('statM').textContent=S.materials.length;$('statQ').textContent=S.quizzes.length;$('statA').textContent=S.assignments.length;$('statD').textContent=S.role==='admin'?'':S.user.npm? '1':'—';
  $('recentM').innerHTML=S.materials.slice(0,3).map(x=>item(x.title,x.course,x.meeting||'Materi')).join('')||'<div class="empty">Belum ada materi.</div>';
  $('recentQ').innerHTML=S.quizzes.slice(0,3).map(x=>item(x.title,x.course,x.meeting||'Kuis')).join('')||'<div class="empty">Belum ada kuis.</div>';
- renderCourses(),renderMaterials(),renderQuizzes(),renderAssignments(),renderTemplates(),renderAdminTemplates(),renderWorks();
+ renderAnnouncements();
+renderAdminAnnouncements();
+renderCourses();
+renderMaterials();
+renderQuizzes();
+renderAssignments();
+renderTemplates();
+renderAdminTemplates();
+renderWorks();
 }
+ function renderAnnouncements() {
+  const box = $('announcementList');
+  if (!box) return;
+
+  box.innerHTML = S.announcements.length
+    ? S.announcements.slice(0, 5).map(x => `
+        <div class="item" style="display:block">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <span class="badge blue">${esc(x.category.toUpperCase())}</span>
+            ${Number(x.is_pinned)
+              ? '<span class="badge orange">PENTING</span>'
+              : ''}
+          </div>
+          <h4 style="margin:10px 0 5px">${esc(x.title)}</h4>
+          <p style="font-size:13px;line-height:1.6;color:var(--muted);white-space:pre-wrap;margin:0">
+            ${esc(x.content)}
+          </p>
+          <div class="item-meta" style="margin-top:9px">
+            ${new Date(x.created_at).toLocaleDateString('id-ID')}
+            • Admin ProMed
+          </div>
+        </div>
+      `).join('')
+    : '<div class="empty">Belum ada pengumuman terbaru.</div>';
+}
+
+function renderAdminAnnouncements() {
+  const tbody = $('adminAnnouncementsTable');
+  if (!tbody) return;
+
+  tbody.innerHTML = S.adminAnnouncements.length
+    ? S.adminAnnouncements.map(x => `
+        <tr>
+          <td><strong>${esc(x.title)}</strong></td>
+          <td>${esc(x.category)}</td>
+          <td>
+            <span class="badge ${x.status === 'published' ? 'green' : 'orange'}">
+              ${x.status === 'published' ? 'DIPUBLIKASIKAN' : 'DIARSIPKAN'}
+            </span>
+          </td>
+          <td>${Number(x.is_pinned) ? 'Ya' : '-'}</td>
+          <td>${new Date(x.created_at).toLocaleDateString('id-ID')}</td>
+          <td>
+            <button class="btn soft"
+              onclick="openAnnouncementModal(${Number(x.id)})">
+              Edit
+            </button>
+            <button class="btn ${x.status === 'published' ? 'danger' : 'ok'}"
+              onclick="toggleAnnouncementStatus(${Number(x.id)})">
+              ${x.status === 'published' ? 'Arsipkan' : 'Publikasikan'}
+            </button>
+            <button class="btn danger"
+              onclick="deleteAnnouncement(${Number(x.id)})">
+              Hapus
+            </button>
+          </td>
+        </tr>
+      `).join('')
+    : '<tr><td colspan="6" class="empty">Belum ada pengumuman.</td></tr>';
+} 
   function renderCourses(){
   const q = ($('courseSearch').value || '').trim().toLowerCase();
   const sem = $('courseSemester').value;
@@ -1057,16 +1177,176 @@ async function saveAdminCourse(id = null) {
     alert(error.message || 'Gagal menyimpan mata kuliah.');
   }
 }
-async function adminRefresh() {
+function openAnnouncementModal(id = null) {
+  const announcement = id
+    ? S.adminAnnouncements.find(x => Number(x.id) === Number(id))
+    : null;
+
+  if (id && !announcement) {
+    alert('Pengumuman tidak ditemukan.');
+    return;
+  }
+
+  $('modalTitle').textContent = announcement
+    ? 'Edit Pengumuman'
+    : 'Buat Pengumuman';
+
+  $('modalDesc').textContent =
+    'Pengumuman akan ditampilkan kepada seluruh mahasiswa ProMed.';
+
+  $('modalBody').innerHTML = `
+    <div class="field">
+      <label>Judul Pengumuman</label>
+      <input id="annTitle"
+        maxlength="160"
+        value="${esc(announcement?.title || '')}"
+        placeholder="Masukkan judul pengumuman">
+    </div>
+
+    <div class="field">
+      <label>Isi Pengumuman</label>
+      <textarea id="annContent"
+        placeholder="Tuliskan isi pengumuman...">${esc(announcement?.content || '')}</textarea>
+    </div>
+
+    <div class="field">
+      <label>Kategori</label>
+      <select id="annCategory">
+        <option value="akademik" ${announcement?.category === 'akademik' ? 'selected' : ''}>Akademik</option>
+        <option value="informasi" ${!announcement || announcement.category === 'informasi' ? 'selected' : ''}>Informasi</option>
+        <option value="penting" ${announcement?.category === 'penting' ? 'selected' : ''}>Penting</option>
+        <option value="kegiatan" ${announcement?.category === 'kegiatan' ? 'selected' : ''}>Kegiatan</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>
+        <input id="annPinned" type="checkbox"
+          ${Number(announcement?.is_pinned) ? 'checked' : ''}>
+        Tandai sebagai pengumuman penting
+      </label>
+    </div>
+  `;
+
+  $('modalSave').onclick = () => saveAnnouncement(id);
+  openModal();
+}
+
+async function saveAnnouncement(id = null) {
+  const data = {
+    title: $('annTitle').value.trim(),
+    content: $('annContent').value.trim(),
+    category: $('annCategory').value,
+    is_pinned: $('annPinned').checked ? 1 : 0
+  };
+
+  if (!data.title || !data.content) {
+    alert('Judul dan isi pengumuman wajib diisi.');
+    return;
+  }
+
+  try {
+    const result = await api(
+      id ? `/api/admin/announcements/${id}` : '/api/admin/announcements',
+      {
+        method: id ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      }
+    );
+
+    closeModal();
+    await adminRefresh();
+    await loadAll();
+
+    alert(result.message || 'Pengumuman berhasil disimpan.');
+  } catch (error) {
+    alert(error.message || 'Gagal menyimpan pengumuman.');
+  }
+}
+
+async function toggleAnnouncementStatus(id) {
+  const announcement = S.adminAnnouncements.find(
+    x => Number(x.id) === Number(id)
+  );
+
+  if (!announcement) {
+    alert('Pengumuman tidak ditemukan.');
+    return;
+  }
+
+  const nextStatus = announcement.status === 'published'
+    ? 'archived'
+    : 'published';
+
+  const action = nextStatus === 'archived'
+    ? 'mengarsipkan'
+    : 'mempublikasikan kembali';
+
+  if (!confirm(`Yakin ingin ${action} pengumuman "${announcement.title}"?`)) {
+    return;
+  }
+
+  try {
+    const result = await api(
+      `/api/admin/announcements/${id}/status`,
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: nextStatus })
+      }
+    );
+
+    await adminRefresh();
+    await loadAll();
+
+    alert(result.message || 'Status pengumuman berhasil diperbarui.');
+  } catch (error) {
+    alert(error.message || 'Gagal mengubah status pengumuman.');
+  }
+}
+
+async function deleteAnnouncement(id) {
+  const announcement = S.adminAnnouncements.find(
+    x => Number(x.id) === Number(id)
+  );
+
+  if (!announcement) {
+    alert('Pengumuman tidak ditemukan.');
+    return;
+  }
+
+  if (!confirm(`Yakin ingin menghapus pengumuman "${announcement.title}" secara permanen?`)) {
+    return;
+  }
+
+  try {
+    const result = await api(
+      `/api/admin/announcements/${id}`,
+      { method: 'DELETE' }
+    );
+
+    await adminRefresh();
+    await loadAll();
+
+    alert(result.message || 'Pengumuman berhasil dihapus.');
+  } catch (error) {
+    alert(error.message || 'Gagal menghapus pengumuman.');
+  }
+}
+  
+  async function adminRefresh() {
   if (S.role !== 'admin') return;
 
   try {
-    const [sum, students, subs, courses] = await Promise.all([
-      api('/api/admin/summary'),
-      api('/api/admin/students'),
-      api('/api/admin/submissions'),
-      api('/api/admin/courses')
-    ]);
+    const [sum, students, subs, courses, announcements] =
+  await Promise.all([
+    api('/api/admin/summary'),
+    api('/api/admin/students'),
+    api('/api/admin/submissions'),
+    api('/api/admin/courses'),
+    api('/api/admin/announcements')
+  ]);
 
     // Statistik admin
     $('aStudents').textContent = students.items.length;
@@ -1120,8 +1400,10 @@ async function adminRefresh() {
 
     // Daftar mata kuliah dari database
     S.adminCourses = courses.items || [];
-    renderAdminCourses();
+S.adminAnnouncements = announcements.items || [];
 
+renderAdminCourses();
+renderAdminAnnouncements();
   } catch (error) {
     console.error('Admin refresh gagal:', error);
     alert(error.message || 'Gagal memuat Admin Panel.');
