@@ -892,6 +892,214 @@ async function adminUpdateCourse(request, env, id) {
     message: 'Mata kuliah berhasil diperbarui.'
   });
 }
+async function listAnnouncements(env, request) {
+  const student = await currentStudent(request, env);
+  const admin = await isAdmin(request, env);
+
+  if (!student && !admin) {
+    return json({ message: 'Belum login.' }, 401);
+  }
+
+  const q = await env.DB.prepare(`
+    SELECT id, title, content, category, is_pinned,
+           status, created_at, updated_at
+    FROM pm_announcements
+    WHERE status = 'published'
+    ORDER BY is_pinned DESC, created_at DESC
+  `).all();
+
+  return json({ items: q.results || [] });
+}
+
+async function adminListAnnouncements(env, request) {
+  if (!(await isAdmin(request, env))) {
+    return json({ message: 'Belum login admin.' }, 401);
+  }
+
+  const q = await env.DB.prepare(`
+    SELECT id, title, content, category, is_pinned,
+           status, created_at, updated_at
+    FROM pm_announcements
+    ORDER BY created_at DESC
+  `).all();
+
+  return json({ items: q.results || [] });
+}
+
+async function adminCreateAnnouncement(request, env) {
+  if (!(await isAdmin(request, env))) {
+    return json({ message: 'Belum login admin.' }, 401);
+  }
+
+  const data = await request.json().catch(() => ({}));
+  const title = String(data.title || '').trim();
+  const content = String(data.content || '').trim();
+  const category = String(data.category || 'informasi').trim();
+  const isPinned = data.is_pinned ? 1 : 0;
+
+  const allowedCategories = [
+    'akademik',
+    'informasi',
+    'penting',
+    'kegiatan'
+  ];
+
+  if (!title || !content) {
+    return json({
+      message: 'Judul dan isi pengumuman wajib diisi.'
+    }, 400);
+  }
+
+  if (title.length > 160 || content.length > 10000) {
+    return json({
+      message: 'Judul maksimal 160 karakter dan isi maksimal 10.000 karakter.'
+    }, 400);
+  }
+
+  if (!allowedCategories.includes(category)) {
+    return json({
+      message: 'Kategori pengumuman tidak valid.'
+    }, 400);
+  }
+
+  const timestamp = now();
+
+  const result = await env.DB.prepare(`
+    INSERT INTO pm_announcements
+      (title, content, category, is_pinned, status, created_at, updated_at)
+    VALUES (?, ?, ?, ?, 'published', ?, ?)
+  `).bind(
+    title,
+    content,
+    category,
+    isPinned,
+    timestamp,
+    timestamp
+  ).run();
+
+  return json({
+    ok: true,
+    message: 'Pengumuman berhasil dipublikasikan.',
+    id: result.meta.last_row_id
+  });
+}
+
+async function adminUpdateAnnouncement(request, env, id) {
+  if (!(await isAdmin(request, env))) {
+    return json({ message: 'Belum login admin.' }, 401);
+  }
+
+  const data = await request.json().catch(() => ({}));
+  const title = String(data.title || '').trim();
+  const content = String(data.content || '').trim();
+  const category = String(data.category || 'informasi').trim();
+  const isPinned = data.is_pinned ? 1 : 0;
+
+  const allowedCategories = [
+    'akademik',
+    'informasi',
+    'penting',
+    'kegiatan'
+  ];
+
+  if (!title || !content) {
+    return json({
+      message: 'Judul dan isi pengumuman wajib diisi.'
+    }, 400);
+  }
+
+  if (title.length > 160 || content.length > 10000) {
+    return json({
+      message: 'Judul maksimal 160 karakter dan isi maksimal 10.000 karakter.'
+    }, 400);
+  }
+
+  if (!allowedCategories.includes(category)) {
+    return json({
+      message: 'Kategori pengumuman tidak valid.'
+    }, 400);
+  }
+
+  const existing = await env.DB.prepare(
+    'SELECT id FROM pm_announcements WHERE id = ?'
+  ).bind(id).first();
+
+  if (!existing) {
+    return json({ message: 'Pengumuman tidak ditemukan.' }, 404);
+  }
+
+  await env.DB.prepare(`
+    UPDATE pm_announcements
+    SET title = ?, content = ?, category = ?,
+        is_pinned = ?, updated_at = ?
+    WHERE id = ?
+  `).bind(
+    title,
+    content,
+    category,
+    isPinned,
+    now(),
+    id
+  ).run();
+
+  return json({
+    ok: true,
+    message: 'Pengumuman berhasil diperbarui.'
+  });
+}
+
+async function adminSetAnnouncementStatus(request, env, id) {
+  if (!(await isAdmin(request, env))) {
+    return json({ message: 'Belum login admin.' }, 401);
+  }
+
+  const data = await request.json().catch(() => ({}));
+  const status = String(data.status || '').trim();
+
+  if (!['published', 'archived'].includes(status)) {
+    return json({ message: 'Status pengumuman tidak valid.' }, 400);
+  }
+
+  const existing = await env.DB.prepare(
+    'SELECT id FROM pm_announcements WHERE id = ?'
+  ).bind(id).first();
+
+  if (!existing) {
+    return json({ message: 'Pengumuman tidak ditemukan.' }, 404);
+  }
+
+  await env.DB.prepare(`
+    UPDATE pm_announcements
+    SET status = ?, updated_at = ?
+    WHERE id = ?
+  `).bind(status, now(), id).run();
+
+  return json({
+    ok: true,
+    message: status === 'published'
+      ? 'Pengumuman berhasil dipublikasikan kembali.'
+      : 'Pengumuman berhasil diarsipkan.'
+  });
+}
+
+async function adminDeleteAnnouncement(request, env, id) {
+  if (!(await isAdmin(request, env))) {
+    return json({ message: 'Belum login admin.' }, 401);
+  }
+
+  const result = await env.DB.prepare(
+    'DELETE FROM pm_announcements WHERE id = ?'
+  ).bind(id).run();
+
+  if (!result.meta.changes) {
+    return json({ message: 'Pengumuman tidak ditemukan.' }, 404);
+  }
+
+  return json({
+    ok: true,
+    message: 'Pengumuman berhasil dihapus.'
+  });
+}
 async function adminSetCourseStatus(request, env, id) {
   if (!(await isAdmin(request, env))) {
     return json({ message: 'Belum login admin.' }, 401);
@@ -1238,6 +1446,61 @@ if (
     request,
     env,
     Number(p.split('/')[4])
+  );
+}
+      // API Pengumuman untuk mahasiswa
+if (
+  request.method === 'GET' &&
+  p === '/api/announcements'
+) {
+  return listAnnouncements(env, request);
+}
+
+// API pengelolaan Pengumuman untuk admin
+if (
+  request.method === 'GET' &&
+  p === '/api/admin/announcements'
+) {
+  return adminListAnnouncements(env, request);
+}
+
+if (
+  request.method === 'POST' &&
+  p === '/api/admin/announcements'
+) {
+  return adminCreateAnnouncement(request, env);
+}
+
+if (
+  request.method === 'PUT' &&
+  /^\/api\/admin\/announcements\/\d+$/.test(p)
+) {
+  return adminUpdateAnnouncement(
+    request,
+    env,
+    Number(p.split('/').pop())
+  );
+}
+
+if (
+  request.method === 'PATCH' &&
+  /^\/api\/admin\/announcements\/\d+\/status$/.test(p)
+) {
+  return adminSetAnnouncementStatus(
+    request,
+    env,
+    Number(p.split('/')[4])
+  );
+}
+
+if (
+  request.method === 'DELETE' &&
+  /^\/api\/admin\/announcements\/\d+$/.test(p)
+) {
+  return adminDeleteAnnouncement(
+    request,
+    env,
+    Number(p.split('/').pop())
   );
 }
       if(request.method==='POST'&&p==='/api/admin/materials')return adminCreateMaterial(request,env);
