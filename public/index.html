@@ -1820,6 +1820,76 @@ body {
     gap: 10px;
   }
 }
+/* WALLPAPER SIDEBAR PROMED */
+.sidebar {
+  background-color: #111412;
+  background-image:
+    linear-gradient(
+      180deg,
+      rgba(10, 15, 12, .88) 0%,
+      rgba(10, 15, 12, .94) 55%,
+      rgba(10, 15, 12, .98) 100%
+    ),
+    url("https://images.unsplash.com/photo-1764068866740-506ba4cf64e4?auto=format&fit=crop&fm=jpg&q=80&w=1200");
+  background-size: cover;
+  background-position: center, 58% center;
+  background-repeat: no-repeat;
+}
+
+/* IKON NAVIGASI */
+.nav button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 45px;
+  padding: 11px 12px;
+  color: #c1c9c1;
+  border-radius: 9px;
+  transition: .2s ease;
+}
+
+.nav button .nav-icon {
+  width: 21px;
+  min-width: 21px;
+  height: 21px;
+  display: grid;
+  place-items: center;
+  color: #aab9aa;
+}
+
+.nav button .nav-icon svg {
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.nav button:hover {
+  background: rgba(82, 125, 88, .22);
+  color: #ffffff;
+}
+
+.nav button.active {
+  background: rgba(82, 125, 88, .36);
+  border-left: 3px solid #9ddd54;
+  color: #ffffff;
+}
+
+.nav button.active .nav-icon {
+  color: #9ddd54;
+}
+
+.nav button:focus-visible {
+  outline: 2px solid #9ddd54;
+  outline-offset: 2px;
+}
+/* PASTIKAN MENU ADMIN TETAP SEJAJAR */
+.admin .nav button.admin-only {
+  display: flex;
+}
 </style>
 </head>
 <body>
@@ -1861,14 +1931,79 @@ body {
   </div>
 </div>
     <nav class="nav">
-      <button class="active" data-view="dashboard">⌂ <span>Dashboard</span></button>
-      <button data-view="materials">▣ <span>Materi</span></button>
-      <button data-view="quizzes">✓ <span>Kuis</span></button>
-      <button data-view="assignments">▤ <span>Tugas</span></button>
-      <button data-view="works">↥ <span>Karya Saya</span></button>
-      <button data-view="profile">👤 <span>Profil Saya</span></button>
-      <button class="admin-only" data-view="admin">⚙ <span>Admin Panel</span></button>
-    </nav>
+  <button class="active" data-view="dashboard">
+    <span class="nav-icon">
+      <svg viewBox="0 0 24 24">
+        <path d="m3 10 9-7 9 7"/>
+        <path d="M5 9v11h14V9"/>
+        <path d="M9 20v-6h6v6"/>
+      </svg>
+    </span>
+    <span>Dashboard</span>
+  </button>
+
+  <button data-view="materials">
+    <span class="nav-icon">
+      <svg viewBox="0 0 24 24">
+        <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v17H6.5A2.5 2.5 0 0 0 4 22z"/>
+        <path d="M4 5.5v16.5"/>
+        <path d="M8 7h8M8 11h8"/>
+      </svg>
+    </span>
+    <span>Materi</span>
+  </button>
+
+  <button data-view="quizzes">
+    <span class="nav-icon">
+      <svg viewBox="0 0 24 24">
+        <rect x="4" y="4" width="16" height="16" rx="3"/>
+        <path d="m8 12 2.5 2.5L16 9"/>
+      </svg>
+    </span>
+    <span>Kuis</span>
+  </button>
+
+  <button data-view="assignments">
+    <span class="nav-icon">
+      <svg viewBox="0 0 24 24">
+        <rect x="5" y="4" width="14" height="17" rx="2"/>
+        <path d="M9 4.5V3h6v1.5M9 10h6M9 14h6M9 18h4"/>
+      </svg>
+    </span>
+    <span>Tugas</span>
+  </button>
+
+  <button data-view="works">
+    <span class="nav-icon">
+      <svg viewBox="0 0 24 24">
+        <path d="M12 16V4"/>
+        <path d="m7 9 5-5 5 5"/>
+        <path d="M4 14v6h16v-6"/>
+      </svg>
+    </span>
+    <span>Karya Saya</span>
+  </button>
+
+  <button data-view="profile">
+    <span class="nav-icon">
+      <svg viewBox="0 0 24 24">
+        <circle cx="12" cy="8" r="4"/>
+        <path d="M4 21c.5-4.5 3.5-7 8-7s7.5 2.5 8 7"/>
+      </svg>
+    </span>
+    <span>Profil Saya</span>
+  </button>
+
+  <button class="admin-only" data-view="admin">
+    <span class="nav-icon">
+      <svg viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-1.8 1.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5v.1h-2.6v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1-1.8-1.8.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H6.4v-2.6h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1 1.8-1.8.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.5v-.1H15v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1 1.8 1.8-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.5 1h.1v2.6h-.1a1.7 1.7 0 0 0-1.5 1z"/>
+      </svg>
+    </span>
+    <span>Admin Panel</span>
+  </button>
+</nav>
     <div class="sidefoot">Platform pembelajaran ProMed<div><strong>Josan x ProMed</strong></div></div>
   </aside>
   <main class="main">
