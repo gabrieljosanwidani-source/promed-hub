@@ -1509,6 +1509,87 @@ body {
   stroke-linecap: round;
   stroke-linejoin: round;
 }
+
+/* HEADER PROFIL MAHASISWA */
+.top-profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.top-profile .avatar {
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  border: 2px solid #dce8dc;
+  background: #eaf0e9;
+  color: #527d58;
+  overflow: hidden;
+}
+
+.top-profile .avatar svg {
+  width: 23px;
+  height: 23px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.top-profile-details {
+  display: block;
+}
+
+.top-profile-name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.top-profile-name b {
+  color: #17221b;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.semester-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 27px;
+  padding: 0 10px;
+  border-radius: 10px;
+  background: #e4efd9;
+  color: #527d38;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.top-profile-details small {
+  display: block;
+  margin-top: 3px;
+  color: #68736a;
+  font-size: 11px;
+}
+
+@media (max-width: 760px) {
+  .top-profile .top-profile-details {
+    display: block !important;
+  }
+
+  .top-profile-name b {
+    font-size: 12px;
+  }
+
+  .top-profile .avatar {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+  }
+}
+
 </style>
 </head>
 <body>
@@ -1548,7 +1629,28 @@ body {
     <div class="sidefoot">Platform pembelajaran ProMed<div><strong>Josan x ProMed</strong></div></div>
   </aside>
   <main class="main">
-    <header class="top"><button class="mobile" onclick="toggleSide()">☰</button><div class="profile"><div><b id="userName">-</b><small id="userMeta">-</small></div><div class="avatar" id="avatar">PM</div></div></header>
+    
+<header class="top">
+  <button class="mobile" onclick="toggleSide()">☰</button>
+
+  <div class="profile top-profile">
+    <div class="avatar" id="avatar" aria-label="Foto profil mahasiswa">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="8" r="4"/>
+        <path d="M4 21c.5-4.5 3.5-7 8-7s7.5 2.5 8 7"/>
+      </svg>
+    </div>
+
+    <div class="top-profile-details">
+      <div class="top-profile-name">
+        <b id="userName">-</b>
+        <span id="userSemester" class="semester-chip" style="display:none"></span>
+      </div>
+      <small id="userMeta">-</small>
+    </div>
+  </div>
+</header>
+
     <section id="dashboard" class="view active content">
       <div class="hero">
   <div class="hero-row">
@@ -1996,12 +2098,61 @@ async function adminLogin(e) {
   }
 }
 async function boot(){try{const d=await api('/api/me');if(!d.authenticated)return;S.role=d.role;S.user=d.user||{name:'Administrator',npm:'ADMIN'};await bootApp()}catch{}}
-async function bootApp(){
- $('auth').style.display='none';$('app').style.display='flex';document.body.classList.toggle('admin',S.role==='admin');
- $('userName').textContent=S.role==='admin'?'Administrator':S.user.name;$('userMeta').textContent=S.role==='admin'?'Admin Panel':'NPM '+S.user.npm;$('avatar').textContent=S.role==='admin'?'AD':String(S.user.npm).slice(-2);
- if(S.role==='admin'){document.querySelector('[data-view="admin"]').style.display='flex';await adminRefresh()} else {document.querySelector('[data-view="admin"]').style.display='none'}
- await loadAll();showView('dashboard');
+
+function updateSemesterChip(value) {
+  const chip = $('userSemester');
+  if (!chip) return;
+
+  const raw = String(value || '').trim();
+  const match = raw.match(/^(?:(?:semester|s)\s*)?([1-8])$/i);
+
+  if (S.role !== 'student' || !match) {
+    chip.textContent = '';
+    chip.style.display = 'none';
+    return;
+  }
+
+  chip.textContent = 'S' + match[1];
+  chip.style.display = 'inline-flex';
 }
+
+async function loadHeaderProfile() {
+  try {
+    const data = await api('/api/profile');
+    const p = data.profile || {};
+
+    updateSemesterChip(p.semester);
+    setProfilePhotoView(!!p.photo_key, p.updated_at || Date.now());
+  } catch (error) {
+    updateSemesterChip('');
+  }
+}
+
+async function bootApp() {
+  $('auth').style.display = 'none';
+  $('app').style.display = 'flex';
+  document.body.classList.toggle('admin', S.role === 'admin');
+
+  $('userName').textContent =
+    S.role === 'admin' ? 'Administrator' : S.user.name;
+
+  $('userMeta').textContent =
+    S.role === 'admin' ? 'Admin Panel' : 'NPM ' + S.user.npm;
+
+  if (S.role === 'admin') {
+    $('avatar').textContent = 'AD';
+    $('userSemester').style.display = 'none';
+    document.querySelector('[data-view="admin"]').style.display = 'flex';
+    await adminRefresh();
+  } else {
+    document.querySelector('[data-view="admin"]').style.display = 'none';
+    await loadHeaderProfile();
+  }
+
+  await loadAll();
+  showView('dashboard');
+}
+
 async function logout(){await api(S.role==='admin'?'/api/admin/logout':'/api/logout',{method:'POST'}).catch(()=>{});location.reload()}
 async function loadAll() {
   const [c, m, q, a, s, t, announcements] =
@@ -2041,18 +2192,21 @@ function showView(id, preserveCourse=false){
   if(id==='profile' && S.role==='student') loadProfile();
 }
 document.querySelectorAll('.nav button').forEach(b=>b.addEventListener('click',()=>showView(b.dataset.view)));function toggleSide(){$('sidebar').classList.toggle('open')}
-function setProfilePhotoView(hasPhoto, cacheKey=''){
+
+function setProfilePhotoView(hasPhoto, cacheKey='') {
   const photo = $('profilePhoto');
   const placeholder = $('profileAvatarPlaceholder');
   const topAvatar = $('avatar');
-  const initials = S.role === 'student' ? String(S.user?.npm || 'PM').slice(-2) : 'AD';
 
   if (hasPhoto) {
-    const photoUrl = '/api/profile/photo?v=' + encodeURIComponent(cacheKey || Date.now());
+    const photoUrl = '/api/profile/photo?v=' +
+      encodeURIComponent(cacheKey || Date.now());
+
     photo.src = photoUrl;
     photo.style.display = 'block';
     placeholder.style.display = 'none';
-    topAvatar.textContent = '';
+
+    topAvatar.innerHTML = '';
     topAvatar.style.backgroundImage = `url("${photoUrl}")`;
     topAvatar.style.backgroundSize = 'cover';
     topAvatar.style.backgroundPosition = 'center';
@@ -2060,10 +2214,22 @@ function setProfilePhotoView(hasPhoto, cacheKey=''){
     photo.removeAttribute('src');
     photo.style.display = 'none';
     placeholder.style.display = 'inline';
+
     topAvatar.style.backgroundImage = 'none';
-    topAvatar.textContent = initials;
+
+    if (S.role === 'student') {
+      topAvatar.innerHTML = `
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="8" r="4"/>
+          <path d="M4 21c.5-4.5 3.5-7 8-7s7.5 2.5 8 7"/>
+        </svg>
+      `;
+    } else {
+      topAvatar.textContent = 'AD';
+    }
   }
 }
+
 
 function previewProfilePhoto(event){
   const file = event.target.files?.[0];
@@ -2154,6 +2320,7 @@ async function loadProfile(){
     $('profileProgram').value = p.program_study || '';
     $('profileCohort').value = p.cohort_year || '';
     $('profileSemester').value = p.semester || '';
+     updateSemesterChip(p.semester);
     setProfilePhotoView(!!p.photo_key, p.updated_at || Date.now());
 
     message.textContent = '';
@@ -2185,6 +2352,7 @@ $('profileForm').addEventListener('submit', async event => {
 
     message.textContent = result.message || 'Profil berhasil disimpan.';
     message.style.color = '#15803d';
+     updateSemesterChip($('profileSemester').value);
   } catch (error) {
     message.textContent = error.message || 'Gagal menyimpan profil.';
     message.style.color = '#b91c1c';
