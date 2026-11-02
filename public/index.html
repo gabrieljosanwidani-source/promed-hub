@@ -854,6 +854,161 @@ body {
   }
 }
 
+
+/* =================================
+   PROFIL SAYA — DARK CAMPUS
+   ================================= */
+
+#profile .section-head {
+  margin-top: 0;
+  margin-bottom: 16px;
+}
+
+#profile .section-head h3 {
+  font-size: 21px;
+  color: #17221b;
+}
+
+#profile .section-head p {
+  margin-top: 5px;
+  line-height: 1.5;
+}
+
+/* Kartu utama profil */
+#profile > .card {
+  max-width: 900px;
+  padding: 24px;
+  border: 1px solid #dfe5df;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(17, 24, 18, .035);
+}
+
+/* Identitas dan foto mahasiswa */
+#profile > .card > div:first-child {
+  align-items: center;
+  gap: 20px;
+  padding-bottom: 22px;
+  border-bottom: 1px solid #e7ece6;
+}
+
+#profileAvatar {
+  background: #eaf0e9 !important;
+  border: 3px solid #d9e5d7;
+  color: #527d58;
+}
+
+#profileDisplayName {
+  margin: 0 0 5px;
+  color: #17221b;
+  font-size: 19px;
+}
+
+#profileDisplayNpm {
+  margin: 0;
+  color: #68736a;
+  font-size: 12px;
+}
+
+/* Input foto */
+#profilePhotoInput {
+  max-width: 100% !important;
+  font-size: 12px;
+}
+
+#profilePhotoButton {
+  background: #eaf0e9;
+  color: #345b3c;
+  border-radius: 7px;
+  font-size: 12px;
+}
+
+#profilePhotoMessage {
+  line-height: 1.5;
+}
+
+/* Formulir data akademik */
+#profileForm {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 18px;
+  row-gap: 2px;
+  padding-top: 7px;
+}
+
+#profileForm > div {
+  margin-bottom: 13px !important;
+}
+
+#profileForm label {
+  display: block;
+  margin-bottom: 7px;
+  color: #526254;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+#profileForm input {
+  width: 100%;
+  min-height: 43px;
+  padding: 10px 12px;
+  border: 1px solid #d9e2d9;
+  border-radius: 8px;
+  outline: none;
+  color: #253128;
+  background: #ffffff;
+  font-size: 13px;
+}
+
+#profileForm input[readonly] {
+  background: #f3f6f2;
+  color: #68736a;
+}
+
+#profileForm input:focus {
+  border-color: #527d58;
+  outline: 2px solid rgba(82, 125, 88, .12);
+}
+
+#profileMessage {
+  grid-column: 1 / -1;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+#profileForm button[type="submit"] {
+  justify-self: start;
+  min-width: 150px;
+  min-height: 40px;
+  border-radius: 7px;
+  background: #527d58;
+  font-size: 13px;
+}
+
+/* Tampilan HP */
+@media (max-width: 760px) {
+  #profile > .card {
+    padding: 17px;
+  }
+
+  #profile > .card > div:first-child {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  #profileForm {
+    grid-template-columns: 1fr;
+  }
+
+  #profileForm button[type="submit"] {
+    width: 100%;
+  }
+
+  #profilePhotoInput {
+    width: 100%;
+  }
+}
+
 </style>
 </head>
 <body>
