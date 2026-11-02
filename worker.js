@@ -892,6 +892,43 @@ async function adminUpdateCourse(request, env, id) {
     message: 'Mata kuliah berhasil diperbarui.'
   });
 }
+async function adminSetCourseStatus(request, env, id) {
+  if (!(await isAdmin(request, env))) {
+    return json({ message: 'Belum login admin.' }, 401);
+  }
+
+  const data = await request.json().catch(() => ({}));
+  const status = String(data.status || '').trim();
+
+  if (!['active', 'inactive'].includes(status)) {
+    return json({
+      message: 'Status mata kuliah tidak valid.'
+    }, 400);
+  }
+
+  const course = await env.DB.prepare(
+    'SELECT id FROM pm_courses WHERE id = ?'
+  ).bind(id).first();
+
+  if (!course) {
+    return json({
+      message: 'Mata kuliah tidak ditemukan.'
+    }, 404);
+  }
+
+  await env.DB.prepare(`
+    UPDATE pm_courses
+    SET status = ?
+    WHERE id = ?
+  `).bind(status, id).run();
+
+  return json({
+    ok: true,
+    message: status === 'active'
+      ? 'Mata kuliah berhasil diaktifkan kembali.'
+      : 'Mata kuliah berhasil dinonaktifkan.'
+  });
+}
 async function listStudents(env, request) {
   if(!(await isAdmin(request,env)))return json({message:'Belum login admin.'},401);
   const q=await env.DB.prepare(`SELECT s.id,s.npm,s.name,s.active,COUNT(d.id) AS devices FROM pm_students s LEFT JOIN pm_devices d ON d.student_id=s.id AND d.active=1 GROUP BY s.id ORDER BY s.name`).all();
@@ -1193,6 +1230,16 @@ if (
   );
 }
       if(request.method==='POST'&&/^\/api\/admin\/students\/\d+\/reset-device$/.test(p))return resetStudentDevice(env,request,Number(p.split('/')[4]));
+      if (
+  request.method === 'PATCH' &&
+  /^\/api\/admin\/courses\/\d+\/status$/.test(p)
+) {
+  return adminSetCourseStatus(
+    request,
+    env,
+    Number(p.split('/')[4])
+  );
+}
       if(request.method==='POST'&&p==='/api/admin/materials')return adminCreateMaterial(request,env);
       if(request.method==='POST'&&p==='/api/admin/quizzes')return adminCreateQuiz(request,env);
       if(request.method==='POST'&&p==='/api/admin/assignments')return adminCreateAssignment(request,env);
