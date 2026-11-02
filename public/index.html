@@ -328,6 +328,80 @@ body {
     font-size: 24px;
   }
 }
+
+/* Penyempurnaan tampilan Mata Kuliah */
+#dashboard .toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 190px;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+#dashboard .toolbar input,
+#dashboard .toolbar select {
+  width: 100%;
+  min-width: 0;
+  min-height: 43px;
+  border-radius: 8px;
+}
+
+#courseList {
+  gap: 12px;
+}
+
+#courseList > .card {
+  padding: 17px;
+  border: 1px solid #dfe5df;
+  border-left: 3px solid #78947b;
+  border-radius: 11px;
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(17, 24, 18, .035);
+  transition: border-color .15s ease, background .15s ease;
+}
+
+#courseList > .card:hover {
+  background: #fafcf9;
+  border-color: #b7c9b8;
+}
+
+#courseList > .card h4 {
+  margin: 12px 0 6px;
+  font-size: 15px;
+  line-height: 1.4;
+  color: #17221b;
+}
+
+#courseList > .card p {
+  color: #68736a;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+#courseList > .card .badge {
+  font-size: 10px;
+  letter-spacing: .2px;
+}
+
+/* Tampilan Mata Kuliah di HP */
+@media (max-width: 760px) {
+  #dashboard .toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  #dashboard .toolbar input,
+  #dashboard .toolbar select {
+    width: 100%;
+  }
+
+  #courseList {
+    grid-template-columns: 1fr;
+  }
+
+  #courseList > .card {
+    padding: 15px;
+  }
+}
+
 </style>
 </head>
 <body>
