@@ -402,6 +402,34 @@ async function openTemplateFile(request, env, id) {
     }
   });
 }
+async function openAssignmentFile(request, env, id) {
+  if (!(await canViewClassContent(env, request, 'assignment', id))) {
+    return new Response('Lampiran tugas ini tidak tersedia untuk kelas yang dipilih.', { status: 404 });
+  }
+
+  const row = await env.DB.prepare(`
+    SELECT f.file_key,f.file_name,f.content_type
+    FROM pm_assignment_files f
+    JOIN pm_assignments a ON a.id=f.assignment_id
+    WHERE f.assignment_id=? AND a.status='active'
+  `).bind(id).first();
+
+  if (!row) return new Response('Lampiran tugas tidak ditemukan.', { status: 404 });
+
+  const response = await githubRead(env, row.file_key);
+  if (!response) return new Response('File lampiran tidak ditemukan.', { status: 404 });
+
+  return new Response(response.body, {
+    status: 200,
+    headers: {
+      'Content-Type': row.content_type || 'application/octet-stream',
+      'Content-Disposition': `attachment; filename="${safeName(row.file_name)}"`,
+      'Cache-Control': 'private, no-store',
+      'X-Content-Type-Options': 'nosniff'
+    }
+  });
+}
+
 async function listMaterials(env, request) {
   const filter = await getClassFilter(request, env);
   if (filter === '__INVALID__') return json({ message: 'Kelas tidak valid.' }, 400);
@@ -426,8 +454,12 @@ async function listAssignments(env, request) {
   const filter = await getClassFilter(request, env);
   if (filter === '__INVALID__') return json({ message: 'Kelas tidak valid.' }, 400);
   const sql = `SELECT a.id,a.title,a.course,a.course_id,a.instructions,a.deadline,a.created_at,a.status,
+    af.file_name AS attachment_name,
+    CASE WHEN af.file_key IS NOT NULL THEN 1 ELSE 0 END AS has_attachment,
     COALESCE((SELECT cc.class_name FROM pm_class_content cc WHERE cc.content_type='assignment' AND cc.content_id=a.id LIMIT 1),'Semua Kelas') AS class_name
-    FROM pm_assignments a WHERE a.status='active' ${classScopeSql('assignment','a',filter)}
+    FROM pm_assignments a
+    LEFT JOIN pm_assignment_files af ON af.assignment_id=a.id
+    WHERE a.status='active' ${classScopeSql('assignment','a',filter)}
     ORDER BY CASE WHEN a.deadline IS NULL OR a.deadline='' THEN 1 ELSE 0 END, a.deadline`;
   const stmt = env.DB.prepare(sql);
   const q = filter && filter !== '__NO_CLASS__' ? await stmt.bind(filter).all() : await stmt.all();
@@ -671,18 +703,90 @@ async function adminCreateTemplate(request, env) {
 
 async function adminCreateAssignment(request, env) {
   if (!(await isAdmin(request, env))) return json({ message: 'Belum login admin.' }, 401);
-  const data = await request.json().catch(() => ({}));
+
+  const contentType = request.headers.get('content-type') || '';
+  let data = {};
+  let file = null;
+
+  if (contentType.includes('multipart/form-data')) {
+    const form = await request.formData();
+    data = {
+      title: form.get('title'),
+      course: form.get('course'),
+      instructions: form.get('instructions'),
+      deadline: form.get('deadline'),
+      class_name: form.get('class_name')
+    };
+    const candidate = form.get('file');
+    if (candidate instanceof File && candidate.size > 0) file = candidate;
+  } else {
+    // Kompatibilitas untuk klien lama yang masih mengirim JSON.
+    data = await request.json().catch(() => ({}));
+  }
+
   const title = String(data.title || '').trim();
   const course = String(data.course || '').trim();
   const instructions = String(data.instructions || '').trim();
   const deadline = String(data.deadline || '').trim();
   const className = String(data.class_name || 'Semua Kelas').trim();
+
   if (!title || !course) return json({ message: 'Judul dan mata kuliah wajib diisi.' }, 400);
   if (!validClassName(className)) return json({ message: 'Kelas yang dipilih tidak valid.' }, 400);
-  const result = await env.DB.prepare(`INSERT INTO pm_assignments(title,course,instructions,deadline,created_at,status) VALUES(?,?,?,?,?,?)`)
-    .bind(title, course, instructions, deadline, now(), 'active').run();
-  await setContentClass(env, 'assignment', result.meta.last_row_id, className);
-  return json({ message: className === 'Semua Kelas' ? 'Tugas dibuat untuk semua kelas.' : `Tugas dibuat untuk kelas ${className}.`, id: result.meta.last_row_id });
+
+  const allowedExtensions = new Set(['pdf','doc','docx','ppt','pptx','xls','xlsx','jpg','jpeg','png','txt']);
+  if (file) {
+    const extension = String(file.name || '').split('.').pop().toLowerCase();
+    if (!allowedExtensions.has(extension)) {
+      return json({ message: 'Format lampiran tidak didukung. Gunakan PDF, Word, PowerPoint, Excel, JPG, PNG, atau TXT.' }, 400);
+    }
+    if (file.size > MAX_FILE_SIZE) {
+      return json({ message: 'Lampiran terlalu besar. Maksimum 10 MB.' }, 413);
+    }
+  }
+
+  const result = await env.DB.prepare(
+    `INSERT INTO pm_assignments(title,course,instructions,deadline,created_at,status) VALUES(?,?,?,?,?,?)`
+  ).bind(title, course, instructions, deadline, now(), 'active').run();
+
+  const assignmentId = Number(result.meta.last_row_id);
+  let uploadedKey = null;
+
+  try {
+    await setContentClass(env, 'assignment', assignmentId, className);
+
+    if (file) {
+      const cleanName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      uploadedKey = `assignments/${crypto.randomUUID()}-${cleanName}`;
+      await githubUpload(env, uploadedKey, file, `Upload lampiran tugas: ${title}`);
+      await env.DB.prepare(
+        `INSERT INTO pm_assignment_files(assignment_id,file_key,file_name,content_type,uploaded_at) VALUES(?,?,?,?,?)`
+      ).bind(assignmentId, uploadedKey, file.name, file.type || 'application/octet-stream', now()).run();
+    }
+  } catch (error) {
+    if (uploadedKey) {
+      try { await githubDelete(env, uploadedKey); }
+      catch (cleanupError) { console.error('Gagal membersihkan lampiran tugas:', cleanupError); }
+    }
+    try {
+      await env.DB.prepare("DELETE FROM pm_class_content WHERE content_type='assignment' AND content_id=?").bind(assignmentId).run();
+    } catch (cleanupError) {
+      console.error('Gagal membersihkan pemetaan kelas tugas:', cleanupError);
+    }
+    try {
+      await env.DB.prepare('DELETE FROM pm_assignments WHERE id=?').bind(assignmentId).run();
+    } catch (cleanupError) {
+      console.error('Gagal membersihkan data tugas:', cleanupError);
+    }
+    console.error('Gagal membuat tugas:', error);
+    return json({ message: error instanceof Error ? `Tugas gagal dibuat: ${error.message}` : 'Tugas gagal dibuat.' }, 500);
+  }
+
+  const attachmentMessage = file ? ' Lampiran berhasil ditambahkan.' : '';
+  return json({
+    message: (className === 'Semua Kelas' ? 'Tugas dibuat untuk semua kelas.' : `Tugas dibuat untuk kelas ${className}.`) + attachmentMessage,
+    id: assignmentId,
+    has_attachment: Boolean(file)
+  });
 }
 
 async function adminDeleteMaterial(request, env, id) {
@@ -779,10 +883,25 @@ async function adminDeleteTemplate(request, env, id) {
 }
 
 async function adminDeleteAssignment(request, env, id) {
-  if(!(await isAdmin(request,env)))return json({message:'Belum login admin.'},401);
+  if (!(await isAdmin(request, env))) return json({ message: 'Belum login admin.' }, 401);
+
+  const attachment = await env.DB.prepare(
+    'SELECT file_key FROM pm_assignment_files WHERE assignment_id=?'
+  ).bind(id).first();
+
+  if (attachment?.file_key) {
+    try {
+      await githubDelete(env, attachment.file_key);
+    } catch (error) {
+      console.error('Gagal menghapus lampiran tugas:', error);
+      return json({ message: 'Lampiran gagal dihapus dari penyimpanan. Data tugas dipertahankan.' }, 502);
+    }
+  }
+
+  await env.DB.prepare('DELETE FROM pm_assignment_files WHERE assignment_id=?').bind(id).run();
   await env.DB.prepare('DELETE FROM pm_assignments WHERE id=?').bind(id).run();
   await env.DB.prepare("DELETE FROM pm_class_content WHERE content_type='assignment' AND content_id=?").bind(id).run();
-  return json({message:'Tugas dihapus.'});
+  return json({ message: 'Tugas dan lampirannya berhasil dihapus.' });
 }
 
 async function addStudent(request, env) {
@@ -1236,6 +1355,7 @@ if(request.method==='PUT'&&p==='/api/profile')return json({message:'Profil mahas
       if(request.method==='GET'&&p==='/api/materials')return listMaterials(env,request);
       if(request.method==='GET'&&p==='/api/quizzes')return listQuizzes(env,request);
       if(request.method==='GET'&&p==='/api/assignments')return listAssignments(env,request);
+      if(request.method==='GET'&&/^\/api\/assignments\/\d+\/file$/.test(p))return openAssignmentFile(request,env,Number(p.split('/')[3]));
       if(request.method==='GET'&&p==='/api/templates')return listTemplates(env,request);
       if(request.method==='GET'&&p==='/api/courses')return listCourses(env,request);
       if(request.method==='GET'&&p==='/api/submissions')return json({message:'Riwayat unggah tugas melalui ProMed Hub sudah dinonaktifkan.'},410);

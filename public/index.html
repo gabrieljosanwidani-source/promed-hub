@@ -3072,6 +3072,11 @@ function renderAssignments() {
             <h4>${esc(item.title)}</h4>
             <p class="task-card-course">${esc(item.course)}</p>
             <p class="task-card-instructions">${esc(item.instructions || 'Tidak ada instruksi tambahan.')}</p>
+            ${item.has_attachment ? `
+              <a class="btn soft" style="margin:10px 0" href="/api/assignments/${Number(item.id)}/file${activeClass ? `?class=${encodeURIComponent(activeClass)}` : ''}">
+                Unduh Lampiran: ${esc(item.attachment_name || 'File tugas')}
+              </a>
+            ` : ''}
             <div class="task-check-row">
               <label class="task-check-label">
                 <input type="checkbox" ${done ? 'checked' : ''} onchange="setAssignmentDone(${Number(item.id)}, this.checked)">
@@ -3298,18 +3303,63 @@ function openQuizModal(){
 async function saveQuiz(){const fd=new FormData();fd.set('title',$('fTitle').value);fd.set('course',$('fCourse').value);fd.set('meeting',$('fMeeting').value);fd.set('class_name',$('fClass').value);const f=$('fFile').files[0];if(f)fd.set('file',f);try{await api('/api/admin/quizzes',{method:'POST',body:fd});closeModal();await loadAll();alert('Kuis berhasil dipublikasikan.')}catch(e){alert(e.message)}}
 function openAssignmentModal(){
   $('modalTitle').textContent='Buat Tugas';
-  $('modalDesc').textContent='Tugas akan ditampilkan hanya kepada kelas yang dipilih, kecuali memilih Semua Kelas.';
+  $('modalDesc').textContent='Pilih kelas tujuan. Kamu juga bisa melampirkan satu file instruksi atau bahan tugas.';
   $('modalBody').innerHTML=`
     <div class="field"><label>Judul tugas</label><input id="fTitle" placeholder="Analisis Representasi Gender"></div>
     <div class="field"><label>Mata kuliah</label><input id="fCourse" placeholder="Media, Gender & Representasi"></div>
     ${classScopeField('fClass')}
     <div class="field"><label>Deadline</label><input id="fDeadline" type="date"></div>
-    <div class="field"><label>Instruksi</label><textarea id="fInstructions" placeholder="Tuliskan instruksi tugas..."></textarea></div>`;
+    <div class="field"><label>Instruksi</label><textarea id="fInstructions" placeholder="Tuliskan instruksi tugas..."></textarea></div>
+    <div class="field">
+      <label>File lampiran tugas (opsional)</label>
+      <input id="fAssignmentFile" type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.jpg,.jpeg,.png,.txt">
+      <small>PDF, Word, PowerPoint, Excel, gambar, atau TXT. Maksimal 10 MB.</small>
+    </div>`;
   $('modalSave').onclick=saveAssignment;
   openModal();
 }
-async function saveAssignment(){try{await api('/api/admin/assignments',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({title:$('fTitle').value,course:$('fCourse').value,deadline:$('fDeadline').value,instructions:$('fInstructions').value,class_name:$('fClass').value})});closeModal();await loadAll();alert('Tugas berhasil dibuat.')}catch(e){alert(e.message)}}
-async function del(type,id){if(!confirm('Hapus item ini?'))return;const path=type==='material'?`/api/admin/materials/${id}`:type==='quiz'?`/api/admin/quizzes/${id}`:`/api/admin/assignments/${id}`;try{await api(path,{method:'DELETE'});await loadAll()}catch(e){alert(e.message)}}
+async function saveAssignment(){
+  try {
+    const fd = new FormData();
+    fd.set('title', $('fTitle').value.trim());
+    fd.set('course', $('fCourse').value.trim());
+    fd.set('deadline', $('fDeadline').value);
+    fd.set('instructions', $('fInstructions').value.trim());
+    fd.set('class_name', $('fClass').value);
+
+    const file = $('fAssignmentFile')?.files?.[0];
+    if (file) fd.set('file', file);
+
+    const result = await api('/api/admin/assignments', {
+      method: 'POST',
+      body: fd
+    });
+
+    closeModal();
+    await adminRefresh();
+    await loadAll();
+    alert(result.message || 'Tugas berhasil dibuat.');
+  } catch (error) {
+    alert(error.message || 'Gagal membuat tugas.');
+  }
+}
+
+   async function del(type,id){
+  if(!confirm('Hapus item ini?'))return;
+  const path=type==='material'
+    ? `/api/admin/materials/${id}`
+    : type==='quiz'
+      ? `/api/admin/quizzes/${id}`
+      : `/api/admin/assignments/${id}`;
+
+  try {
+    await api(path,{method:'DELETE'});
+    await loadAll();
+  } catch(e) {
+    alert(e.message);
+  }
+}
+
 function renderAdminCourses() {
   const tbody = $('adminCoursesTable');
   if (!tbody) return;
@@ -3356,7 +3406,6 @@ function renderAdminCourses() {
     `;
   }).join('');
 }
-
 async function toggleCourseStatus(id) {
   const course = S.adminCourses.find(
     x => Number(x.id) === Number(id)
