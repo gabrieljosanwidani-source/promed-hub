@@ -296,13 +296,6 @@ function userPayload(user) {
   return {id:user.id,npm:user.npm,name:user.name};
 }
 async function openMaterialFile(request, env, id) {
-  const student = await currentStudent(request, env);
-  const admin = await isAdmin(request, env);
-
-  if (!student && !admin) {
-    return new Response('Unauthorized', { status: 401 });
-  }
-
   const row = await env.DB
     .prepare(`
       SELECT file_key, file_name, content_type
@@ -336,13 +329,6 @@ async function openMaterialFile(request, env, id) {
   });
 }
 async function openTemplateFile(request, env, id) {
-  const student = await currentStudent(request, env);
-  const admin = await isAdmin(request, env);
-
-  if (!student && !admin) {
-    return new Response('Unauthorized', { status: 401 });
-  }
-
   const row = await env.DB
     .prepare(`
       SELECT file_key, file_name, content_type
@@ -372,34 +358,23 @@ async function openTemplateFile(request, env, id) {
   });
 }
 async function listMaterials(env, request) {
-  const user = await currentStudent(request, env);
-  if (!user && !(await isAdmin(request, env))) return json({message:'Belum login.'}, 401);
-  const q = await env.DB.prepare(`SELECT id,title,course,course_id,meeting,source_url,file_key,file_name,content_type,uploaded_at,status
+  const q = await env.DB.prepare(`SELECT id,title,course,course_id,meeting,source_url,file_name,content_type,uploaded_at,status
 FROM pm_materials WHERE status='published' ORDER BY uploaded_at DESC`).all();
   return json({items:q.results || []});
 }
 async function listQuizzes(env, request) {
-  const user = await currentStudent(request, env);
-  if (!user && !(await isAdmin(request, env))) return json({message:'Belum login.'}, 401);
   const q = await env.DB.prepare(`SELECT id,title,course,course_id,meeting,file_name,content_type,uploaded_at,status FROM pm_quizzes WHERE status='published' ORDER BY uploaded_at DESC`).all();
   return json({items:q.results || []});
 }
 async function listAssignments(env, request) {
-  const user = await currentStudent(request, env);
-  if (!user && !(await isAdmin(request, env))) return json({message:'Belum login.'}, 401);
   const q = await env.DB.prepare(`SELECT id,title,course,course_id,instructions,deadline,created_at,status FROM pm_assignments WHERE status='active' ORDER BY CASE WHEN deadline IS NULL OR deadline='' THEN 1 ELSE 0 END, deadline`).all();
   return json({items:q.results || []});
 }
 async function listTemplates(env, request) {
-  const user = await currentStudent(request, env);
-
-  if (!user && !(await isAdmin(request, env))) {
-    return json({message:'Belum login.'}, 401);
-  }
-
   const q = await env.DB.prepare(`
-    SELECT id,course_id,title,description,file_key,file_name,
-           content_type,uploaded_at,status
+    SELECT id,course_id,title,description,
+           CASE WHEN file_key IS NOT NULL AND file_key <> '' THEN 1 ELSE 0 END AS has_file,
+           file_name, content_type, uploaded_at, status
     FROM pm_templates
     WHERE status='published'
     ORDER BY uploaded_at DESC
@@ -408,13 +383,6 @@ async function listTemplates(env, request) {
   return json({items:q.results || []});
 }
 async function listCourses(env, request) {
-  const user = await currentStudent(request, env);
-  const admin = await isAdmin(request, env);
-
-  if (!user && !admin) {
-    return json({ message: 'Belum login.' }, 401);
-  }
-
   const q = await env.DB.prepare(`
     SELECT id, name, semester, lecturer, description, status
     FROM pm_courses
@@ -426,39 +394,6 @@ async function listCourses(env, request) {
     items: q.results || []
   });
 }
-async function adminUploadFile(request, env, kind) {
-  if (!(await isAdmin(request, env))) return json({message:'Belum login admin.'}, 401);
-  const form = await request.formData();
-  const file = form.get('file');
-  if (!(file instanceof File)) return json({message:'File belum dipilih.'}, 400);
-  const contentLength = Number(request.headers.get('content-length') || 0);
-  if (contentLength > 25 * 1024 * 1024) return json({message:'File terlalu besar untuk prototipe ini (maks 25 MB).'}, 413);
-  const title = String(form.get('title') || '').trim();
-  const course = String(form.get('course') || '').trim();
-  const meeting = String(form.get('meeting') || '').trim();
-  const sourceUrl = String(form.get('source_url') || '').trim();
-  if (!title || !course) return json({message:'Judul dan mata kuliah wajib diisi.'}, 400);
-  const id = crypto.randomUUID();
-  const filename = extName(file.name);
-  const key = `${kind}/${id}-${filename}`;
-  await env.FILES.put(key, file.stream(), { httpMetadata: { contentType: guessType(file) } });
-  if (kind === 'material') {
-    await env.DB.prepare(`INSERT INTO pm_materials(id,title,course,meeting,source_url,file_key,file_name,content_type,uploaded_at,status) VALUES(?,?,?,?,?,?,?,?,?,?)`)
-      .bind(idToInt(id),title,course,meeting,sourceUrl,key,file.name,guessType(file),now(),'published').run();
-  }
-  if (kind === 'quiz') {
-    await env.DB.prepare(`INSERT INTO pm_quizzes(id,title,course,meeting,file_key,file_name,content_type,uploaded_at,status) VALUES(?,?,?,?,?,?,?,?,?)`)
-      .bind(idToInt(id),title,course,meeting,key,file.name,guessType(file),now(),'published').run();
-  }
-  return json({message:'Berhasil dipublikasikan.',id, file_name:file.name});
-}
-
-function idToInt(uuid) {
-  // D1 integer PKs are generated by the database. This value is only used as a stable-ish API response;
-  // the insert functions below intentionally do not require UUID PKs in the database.
-  return undefined;
-}
-
 async function adminCreateMaterial(request, env) {
   if (!(await isAdmin(request, env))) {
     return json({ message: 'Belum login admin.' }, 401);
@@ -893,13 +828,6 @@ async function adminUpdateCourse(request, env, id) {
   });
 }
 async function listAnnouncements(env, request) {
-  const student = await currentStudent(request, env);
-  const admin = await isAdmin(request, env);
-
-  if (!student && !admin) {
-    return json({ message: 'Belum login.' }, 401);
-  }
-
   const q = await env.DB.prepare(`
     SELECT id, title, content, category, is_pinned,
            status, created_at, updated_at
@@ -1158,73 +1086,63 @@ async function updateSettings(env, request) {
   return getAdminSummary(env,request);
 }
 async function getAdminSummary(env, request) {
-  if(!(await isAdmin(request,env)))return json({message:'Belum login admin.'},401);
-  const maxDevices=Number(await getSetting(env,'max_devices',45));
-  const perStudent=Number(await getSetting(env,'max_devices_per_student',1));
-  const [d,m,q,a,s] = await Promise.all([
-    env.DB.prepare('SELECT COUNT(*) AS c FROM pm_devices WHERE active=1').first(),
-    env.DB.prepare('SELECT COUNT(*) AS c FROM pm_materials').first(),
-    env.DB.prepare('SELECT COUNT(*) AS c FROM pm_quizzes').first(),
+  if (!(await isAdmin(request, env))) return json({message:'Belum login admin.'},401);
+  const [courses, materials, quizzes, assignments, templates, announcements] = await Promise.all([
+    env.DB.prepare("SELECT COUNT(*) AS c FROM pm_courses WHERE status='active'").first(),
+    env.DB.prepare("SELECT COUNT(*) AS c FROM pm_materials WHERE status='published'").first(),
+    env.DB.prepare("SELECT COUNT(*) AS c FROM pm_quizzes WHERE status='published'").first(),
     env.DB.prepare("SELECT COUNT(*) AS c FROM pm_assignments WHERE status='active'").first(),
-    env.DB.prepare('SELECT COUNT(*) AS c FROM pm_submissions').first()
+    env.DB.prepare("SELECT COUNT(*) AS c FROM pm_templates WHERE status='published'").first(),
+    env.DB.prepare("SELECT COUNT(*) AS c FROM pm_announcements WHERE status='published'").first()
   ]);
-  return json({max_devices:maxDevices,max_devices_per_student:perStudent,device_used:Number(d?.c||0),materials:Number(m?.c||0),quizzes:Number(q?.c||0),assignments:Number(a?.c||0),submissions:Number(s?.c||0)});
-}
-
-async function listSubmissions(env, request) {
-  const admin=await isAdmin(request,env);const student=await currentStudent(request,env);
-  if(!admin&&!student)return json({message:'Belum login.'},401);
-  if(admin){
-    const q=await env.DB.prepare(`SELECT ps.id,ps.title,ps.file_name,ps.uploaded_at,pa.title AS assignment,st.npm,st.name,st.id AS student_id FROM pm_submissions ps JOIN pm_assignments pa ON pa.id=ps.assignment_id JOIN pm_students st ON st.id=ps.student_id ORDER BY ps.uploaded_at DESC`).all();
-    return json({items:q.results||[],role:'admin'});
-  }
-  const q=await env.DB.prepare(`SELECT ps.id,ps.title,ps.file_name,ps.uploaded_at,pa.title AS assignment FROM pm_submissions ps JOIN pm_assignments pa ON pa.id=ps.assignment_id WHERE ps.student_id=? ORDER BY ps.uploaded_at DESC`).bind(student.id).all();
-  return json({items:q.results||[],role:'student'});
-}
-async function submitWork(env,request) {
-  const student=await currentStudent(request,env);if(!student)return json({message:'Belum login mahasiswa.'},401);
-  const form=await request.formData();const assignmentId=Number(form.get('assignment_id'));const title=String(form.get('title')||'').trim();const file=form.get('file');
-  if(!assignmentId||!(file instanceof File))return json({message:'Tugas dan file wajib diisi.'},400);
-  const assignment=await env.DB.prepare("SELECT id,title FROM pm_assignments WHERE id=? AND status='active'").bind(assignmentId).first();if(!assignment)return json({message:'Tugas tidak ditemukan.'},404);
-  if(Number(request.headers.get('content-length')||0)>25*1024*1024)return json({message:'File terlalu besar (maks 25 MB).'},413);
-  const key=`submissions/${student.id}/${crypto.randomUUID()}-${extName(file.name)}`;
-  await env.FILES.put(key,file.stream(),{httpMetadata:{contentType:guessType(file)}});
-  const r=await env.DB.prepare(`INSERT INTO pm_submissions(assignment_id,student_id,title,file_key,file_name,content_type,uploaded_at) VALUES(?,?,?,?,?,?,?)`).bind(assignmentId,student.id,title||file.name,key,file.name,guessType(file),now()).run();
-  return json({message:'Karya berhasil dikumpulkan.',id:r.meta.last_row_id});
+  return json({
+    courses: Number(courses?.c || 0),
+    materials: Number(materials?.c || 0),
+    quizzes: Number(quizzes?.c || 0),
+    assignments: Number(assignments?.c || 0),
+    templates: Number(templates?.c || 0),
+    announcements: Number(announcements?.c || 0)
+  });
 }
 
 async function serveFile(env, request, type, id) {
-  const admin=await isAdmin(request,env);const student=await currentStudent(request,env);if(!admin&&!student)return new Response('Unauthorized',{status:401});
-  let row;
-  if(type==='material') row=await env.DB.prepare('SELECT file_key,file_name,content_type FROM pm_materials WHERE id=?').bind(id).first();
-  if(type==='quiz') row=await env.DB.prepare('SELECT file_key,file_name,content_type FROM pm_quizzes WHERE id=?').bind(id).first();
-  if(type==='submission') row=await env.DB.prepare('SELECT file_key,file_name,content_type,student_id FROM pm_submissions WHERE id=?').bind(id).first();
-  if(!row)return new Response('Not Found',{status:404});
-  if(type==='submission'&&!admin&&row.student_id!==student.id)return new Response('Forbidden',{status:403});
-
-  if (type === 'quiz') {
-  const response = await githubRead(env, row.file_key);
-
-  if (!response) {
-    return new Response('File Not Found', { status: 404 });
+  if (type === 'submission') {
+    return new Response('Pengumpulan file melalui ProMed Hub sudah dinonaktifkan. Gunakan platform resmi kampus.', { status: 410 });
   }
 
-  const headers = new Headers();
-  headers.set(
-    'Content-Type',
-    row.content_type || 'text/html; charset=UTF-8'
-  );
-  headers.set(
-    'Content-Disposition',
-    `inline; filename="${safeName(row.file_name)}"`
-  );
-  headers.set('Cache-Control', 'private, no-store');
+  let row;
+  if (type === 'material') {
+    row = await env.DB.prepare("SELECT file_key,file_name,content_type,status FROM pm_materials WHERE id=? AND status='published'").bind(id).first();
+  }
+  if (type === 'quiz') {
+    row = await env.DB.prepare("SELECT file_key,file_name,content_type,status FROM pm_quizzes WHERE id=? AND status='published'").bind(id).first();
+  }
+  if (!row) return new Response('File tidak ditemukan atau belum dipublikasikan.', { status: 404 });
 
-  return new Response(response.body, { headers });
-}
-  const object=await env.FILES.get(row.file_key);if(!object)return new Response('File Not Found',{status:404});
-  const headers=new Headers();headers.set('Content-Type',row.content_type||'application/octet-stream');headers.set('Content-Disposition',`inline; filename="${safeName(row.file_name)}"`);headers.set('Cache-Control','private, max-age=300');
-  return new Response(object.body,{headers});
+  if (type === 'quiz') {
+    const response = await githubRead(env, row.file_key);
+    if (!response) return new Response('File kuis tidak ditemukan.', { status: 404 });
+    return new Response(response.body, {
+      status: 200,
+      headers: {
+        'Content-Type': row.content_type || 'text/html; charset=UTF-8',
+        'Content-Disposition': `inline; filename="${safeName(row.file_name)}"`,
+        'Cache-Control': 'public, max-age=300',
+        'X-Content-Type-Options': 'nosniff'
+      }
+    });
+  }
+
+  const response = await githubRead(env, row.file_key);
+  if (!response) return new Response('File materi tidak ditemukan.', { status: 404 });
+  return new Response(response.body, {
+    headers: {
+      'Content-Type': row.content_type || 'application/octet-stream',
+      'Content-Disposition': `inline; filename="${safeName(row.file_name)}"`,
+      'Cache-Control': 'public, max-age=300',
+      'X-Content-Type-Options': 'nosniff'
+    }
+  });
 }
 export default {
   async fetch(request, env, ctx) {
@@ -1245,180 +1163,33 @@ export default {
   return openMaterialFile(request, env, id);
 }
       if(p==='/api/health')return json({ok:true,service:'ProMed Hub'});
-      if(request.method==='POST'&&p==='/api/login')return loginStudent(request,env);
+      if(request.method==='POST'&&p==='/api/login')return json({message:'Login mahasiswa sudah dinonaktifkan. Website dapat diakses langsung.'},410);
       if(request.method==='POST'&&p==='/api/admin/login')return loginAdmin(request,env);
-      if(request.method==='POST'&&p==='/api/logout')return logoutStudent(env,request);
+      if(request.method==='POST'&&p==='/api/logout')return json({message:'Login mahasiswa sudah tidak digunakan.'},410);
       if(request.method==='POST'&&p==='/api/admin/logout')return logoutAdmin(env,request);
       if(request.method==='GET'&&p==='/api/me'){
-        if(await isAdmin(request,env))return json({authenticated:true,role:'admin'});
-        const s=await currentStudent(request,env);if(s)return json({authenticated:true,role:'student',user:userPayload(s)});
-        return json({authenticated:false},200);
+        if(await isAdmin(request,env)) return json({authenticated:true,role:'admin'});
+        return json({authenticated:false,role:'public'},200);
       }
-            if(request.method==='GET'&&p==='/api/profile/photo'){
-        const student=await currentStudent(request,env);
-        if(!student)return json({message:'Silakan login sebagai mahasiswa.'},401);
+            if(request.method==='GET'&&p==='/api/profile/photo')return json({message:'Profil mahasiswa sudah tidak digunakan.'},410);
 
-        const profile=await env.DB.prepare(
-          'SELECT photo_key FROM pm_profiles WHERE student_id=?'
-        ).bind(student.id).first();
+      if(request.method==='POST'&&p==='/api/profile/photo')return json({message:'Profil mahasiswa sudah tidak digunakan.'},410);
+      if(request.method==='GET'&&p==='/api/profile')return json({message:'Profil mahasiswa sudah tidak digunakan.'},410);
 
-        if(!profile?.photo_key)return new Response('Foto profil belum diunggah.',{
-          status:404,
-          headers:{'Cache-Control':'private, no-store'}
-        });
-
-        const object=await env.FILES.get(profile.photo_key);
-        if(!object)return new Response('Foto profil tidak ditemukan.',{status:404});
-
-        const contentType=object.httpMetadata?.contentType||'application/octet-stream';
-        if(!['image/jpeg','image/png','image/webp'].includes(contentType)){
-          return new Response('Format foto tidak diizinkan.',{status:415});
-        }
-
-        return new Response(object.body,{
-          headers:{
-            'Content-Type':contentType,
-            'Content-Disposition':'inline',
-            'Cache-Control':'private, no-store',
-            'X-Content-Type-Options':'nosniff'
-          }
-        });
-      }
-
-      if(request.method==='POST'&&p==='/api/profile/photo'){
-        const student=await currentStudent(request,env);
-        if(!student)return json({message:'Silakan login sebagai mahasiswa.'},401);
-
-        let form;
-        try{
-          form=await request.formData();
-        }catch{
-          return json({message:'Form unggahan tidak valid.'},400);
-        }
-
-        const file=form.get('photo');
-        if(!(file instanceof File)||file.size===0)
-          return json({message:'Pilih foto terlebih dahulu.'},400);
-
-        if(file.size>2*1024*1024)
-          return json({message:'Ukuran foto maksimal 2 MB.'},413);
-
-        const types={
-          'image/jpeg':'jpg',
-          'image/png':'png',
-          'image/webp':'webp'
-        };
-
-        const ext=types[file.type];
-        if(!ext)return json({message:'Gunakan JPG, PNG, atau WEBP.'},415);
-
-        const bytes=new Uint8Array(await file.arrayBuffer());
-        const valid=
-          (ext==='jpg'&&bytes[0]===255&&bytes[1]===216&&bytes[2]===255)||
-          (ext==='png'&&bytes[0]===137&&bytes[1]===80&&bytes[2]===78&&bytes[3]===71&&bytes[4]===13&&bytes[5]===10&&bytes[6]===26&&bytes[7]===10)||
-          (ext==='webp'&&String.fromCharCode(...bytes.slice(0,4))==='RIFF'&&String.fromCharCode(...bytes.slice(8,12))==='WEBP');
-
-        if(!valid)return json({message:'Isi file bukan gambar yang valid.'},415);
-
-        const old=await env.DB.prepare(
-          'SELECT photo_key FROM pm_profiles WHERE student_id=?'
-        ).bind(student.id).first();
-
-        const key=`profiles/${student.id}/${crypto.randomUUID()}.${ext}`;
-
-        await env.FILES.put(key,bytes,{
-          httpMetadata:{
-            contentType:file.type,
-            cacheControl:'private, no-store'
-          }
-        });
-
-        try{
-          await env.DB.prepare(`
-            INSERT INTO pm_profiles (student_id,photo_key,updated_at)
-            VALUES (?, ?, CURRENT_TIMESTAMP)
-            ON CONFLICT(student_id) DO UPDATE SET
-              photo_key=excluded.photo_key,
-              updated_at=CURRENT_TIMESTAMP
-          `).bind(student.id,key).run();
-        }catch(error){
-          await env.FILES.delete(key).catch(()=>{});
-          throw error;
-        }
-
-        if(old?.photo_key&&old.photo_key.startsWith(`profiles/${student.id}/`)){
-          await env.FILES.delete(old.photo_key).catch(()=>{});
-        }
-
-        return json({ok:true,message:'Foto profil berhasil diperbarui.'});
-      }
-      if(request.method==='GET'&&p==='/api/profile'){
-  const student=await currentStudent(request,env);
-  if(!student)return json({message:'Silakan login sebagai mahasiswa.'},401);
-
-  const profile=await env.DB.prepare(`
-    SELECT program_study, cohort_year, semester, photo_key, updated_at
-    FROM pm_profiles
-    WHERE student_id=?
-  `).bind(student.id).first();
-
-  return json({
-    profile:profile||{
-      program_study:'',
-      cohort_year:'',
-      semester:'',
-      photo_key:null,
-      updated_at:null
-    }
-  });
-}
-
-if(request.method==='PUT'&&p==='/api/profile'){
-  const student=await currentStudent(request,env);
-  if(!student)return json({message:'Silakan login sebagai mahasiswa.'},401);
-
-  let data;
-  try{
-    data=await request.json();
-  }catch{
-    return json({message:'Data tidak valid.'},400);
-  }
-
-  const programStudy=String(data.program_study??'').trim().slice(0,100);
-  const cohortYear=String(data.cohort_year??'').trim().slice(0,20);
-  const semester=String(data.semester??'').trim().slice(0,40);
-
-  await env.DB.prepare(`
-    INSERT INTO pm_profiles
-      (student_id, program_study, cohort_year, semester, updated_at)
-    VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
-    ON CONFLICT(student_id) DO UPDATE SET
-      program_study=excluded.program_study,
-      cohort_year=excluded.cohort_year,
-      semester=excluded.semester,
-      updated_at=CURRENT_TIMESTAMP
-  `).bind(
-    student.id,
-    programStudy,
-    cohortYear,
-    semester
-  ).run();
-
-  return json({ok:true,message:'Profil berhasil disimpan.'});
-}
+if(request.method==='PUT'&&p==='/api/profile')return json({message:'Profil mahasiswa sudah tidak digunakan.'},410);
       if(request.method==='GET'&&p==='/api/materials')return listMaterials(env,request);
       if(request.method==='GET'&&p==='/api/quizzes')return listQuizzes(env,request);
       if(request.method==='GET'&&p==='/api/assignments')return listAssignments(env,request);
       if(request.method==='GET'&&p==='/api/templates')return listTemplates(env,request);
       if(request.method==='GET'&&p==='/api/courses')return listCourses(env,request);
-      if(request.method==='GET'&&p==='/api/submissions')return listSubmissions(env,request);
-      if(request.method==='POST'&&p==='/api/submissions')return submitWork(env,request);
+      if(request.method==='GET'&&p==='/api/submissions')return json({message:'Riwayat unggah tugas melalui ProMed Hub sudah dinonaktifkan.'},410);
+      if(request.method==='POST'&&p==='/api/submissions')return json({message:'Pengumpulan file dilakukan melalui platform resmi kampus, bukan ProMed Hub.'},410);
       if(request.method==='GET'&&p.startsWith('/api/files/material/'))return serveFile(env,request,'material',Number(p.split('/').pop()));
       if(request.method==='GET'&&p.startsWith('/api/files/quiz/'))return serveFile(env,request,'quiz',Number(p.split('/').pop()));
       if(request.method==='GET'&&p.startsWith('/api/files/submission/'))return serveFile(env,request,'submission',Number(p.split('/').pop()));
       if(request.method==='GET'&&p==='/api/admin/summary')return getAdminSummary(env,request);
-      if(request.method==='GET'&&p==='/api/admin/students')return listStudents(env,request);
-      if(request.method==='POST'&&p==='/api/admin/students')return addStudent(request,env);
+      if(request.method==='GET'&&p==='/api/admin/students')return json({message:'Pengelolaan akun mahasiswa sudah tidak digunakan.'},410);
+      if(request.method==='POST'&&p==='/api/admin/students')return json({message:'Admin tidak perlu menambahkan akun mahasiswa.'},410);
       if (request.method === 'GET' && p === '/api/admin/courses') {
   return listAdminCourses(env, request);
 }
@@ -1437,7 +1208,7 @@ if (
     Number(p.split('/').pop())
   );
 }
-      if(request.method==='POST'&&/^\/api\/admin\/students\/\d+\/reset-device$/.test(p))return resetStudentDevice(env,request,Number(p.split('/')[4]));
+      if(request.method==='POST'&&/^\/api\/admin\/students\/\d+\/reset-device$/.test(p))return json({message:'Pengelolaan device mahasiswa sudah tidak digunakan.'},410);
       if (
   request.method === 'PATCH' &&
   /^\/api\/admin\/courses\/\d+\/status$/.test(p)
@@ -1515,8 +1286,8 @@ if (
         if(!(await isAdmin(request,env)))return json({message:'Belum login admin.'},401);
         return getAdminSummary(env,request);
       }
-      if(request.method==='POST'&&p==='/api/admin/settings')return updateSettings(env,request);
-      if(request.method==='GET'&&p==='/api/admin/submissions')return listSubmissions(env,request);
+      if(request.method==='POST'&&p==='/api/admin/settings')return json({message:'Pengaturan device mahasiswa sudah tidak digunakan.'},410);
+      if(request.method==='GET'&&p==='/api/admin/submissions')return json({message:'Daftar pengumpulan file melalui ProMed Hub sudah dinonaktifkan.'},410);
 if (
   request.method === 'GET' &&
   /^\/api\/materials\/\d+\/file$/.test(p)
