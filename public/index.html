@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>ProMed Hub — Josan x ProMed</title>
-<meta name="description" content="ProMed Hub — pusat materi, kuis, tugas, kalender, dan karya mahasiswa.">
+<meta name="description" content="ProMed Hub — pusat informasi perkuliahan, materi, kuis, dan tugas mahasiswa.">
 <style>
 :root{--bg:#f4f7fb;--panel:#fff;--ink:#142033;--muted:#6b7788;--line:#e6eaf0;--blue:#1859d1;--blue2:#0e3a97;--soft:#edf3ff;--navy:#101a2d;--ok:#0d9769;--warn:#c97808;--danger:#c72c38;--shadow:0 16px 40px rgba(16,26,45,.08)}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}button,input,select,textarea{font:inherit}button{cursor:pointer}a{text-decoration:none;color:inherit}
@@ -736,7 +736,6 @@ body {
 
 
 /* =================================
-   KARYA SAYA — DARK CAMPUS
    ================================= */
 
 #works .section-head {
@@ -755,7 +754,7 @@ body {
   line-height: 1.5;
 }
 
-/* Tombol Upload Karya */
+/* Gaya tombol lama yang tidak lagi ditampilkan */
 #works .section-head .btn.primary {
   min-height: 40px;
   padding: 9px 15px;
@@ -856,7 +855,6 @@ body {
 
 
 /* =================================
-   PROFIL SAYA — DARK CAMPUS
    ================================= */
 
 #profile .section-head {
@@ -2053,31 +2051,23 @@ body {
   #admin > .grid.cols2 > .card,#admin > .card { padding:14px; }
 }
 
+
+/* Public access + checklist pribadi */
+body.admin .nav button.admin-only { display: flex; }
+.top-admin-actions .btn { white-space: nowrap; }
+.task-check-row { margin-top: 14px; padding: 12px; background: #f5f8f4; border: 1px solid #dce7dc; border-radius: 11px; }
+.task-check-label { display: flex; align-items: flex-start; gap: 9px; cursor: pointer; color: #26372a; font-size: 12px; font-weight: 750; line-height: 1.5; }
+.task-check-label input { width: 17px; height: 17px; margin: 1px 0 0; accent-color: #527d58; flex: 0 0 auto; }
+.task-local-note { margin: 8px 0 0 !important; color: #778178 !important; font-size: 10px !important; }
+.taskcard-done { border-color: #b9d5bd; background: #fbfefb; }
+.taskcard-done h4 { color: #527d58; }
+#adminLoginModal .modal { width: min(460px, 100%); }
+@media (max-width:760px) { .top-admin-actions { margin-right: 4px !important; } .top-admin-actions .btn { padding: 8px 10px; font-size: 12px; } }
+
 </style>
 </head>
 <body>
-<div id="auth" class="auth">
-  <div class="auth-card">
-    <div class="logo"><div class="mark">PM</div><div><h1>ProMed Hub</h1><p>Josan x ProMed</p></div></div>
-    <h2>Ruang belajar satu angkatan.</h2>
-    <div class="auth-copy">Materi, kuis, tugas, kalender, dan pengumpulan karya dalam satu portal yang dikelola admin.</div>
-    <div class="switch"><button id="studentTab" class="active" onclick="setAuthMode('student')">Mahasiswa</button><button id="adminTab" onclick="setAuthMode('admin')">Admin</button></div>
-    <form id="studentLogin" onsubmit="studentLogin(event)">
-      <div class="field"><label>NPM</label><input id="npm" inputmode="numeric" placeholder="Contoh: 26758023" required></div>
-      <div class="field"><label>Tanggal lahir</label><input id="dob" type="date" required></div>
-      <div class="note">Tanggal lahir digunakan sebagai verifikasi login. Sistem produksi di sini hanya menyimpan hash tanggal lahir, bukan tanggal lahir mentah.</div>
-      <button class="btn primary block" style="margin-top:14px">Masuk ke ProMed Hub</button>
-    </form>
-    <form id="adminLogin" onsubmit="adminLogin(event)" style="display:none">
-      <div class="field"><label>Admin Key</label><input id="adminKey" type="password" placeholder="Masukkan admin key" required></div>
-      <button class="btn primary block">Masuk sebagai Admin</button>
-    </form>
-    <div id="authMsg" style="margin-top:12px"></div>
-    <div class="foot">© 2026 Josan x ProMed</div>
-  </div>
-</div>
-
-<div id="app" class="app">
+<div id="app" class="app" style="display:flex">
   <aside id="sidebar" class="sidebar">
     <div class="brand">
   <div class="mark brand-logo" aria-label="Logo ProMed Hub">
@@ -2136,26 +2126,9 @@ body {
     <span>Tugas</span>
   </button>
 
-  <button data-view="works">
-    <span class="nav-icon">
-      <svg viewBox="0 0 24 24">
-        <path d="M12 16V4"/>
-        <path d="m7 9 5-5 5 5"/>
-        <path d="M4 14v6h16v-6"/>
-      </svg>
-    </span>
-    <span>Karya Saya</span>
-  </button>
+  
 
-  <button data-view="profile">
-    <span class="nav-icon">
-      <svg viewBox="0 0 24 24">
-        <circle cx="12" cy="8" r="4"/>
-        <path d="M4 21c.5-4.5 3.5-7 8-7s7.5 2.5 8 7"/>
-      </svg>
-    </span>
-    <span>Profil Saya</span>
-  </button>
+  
 
   <button class="admin-only" data-view="admin">
     <span class="nav-icon">
@@ -2175,22 +2148,16 @@ body {
   <button class="mobile" onclick="toggleSide()">☰</button>
 
   <div class="profile top-profile">
-    <div class="avatar" id="avatar" aria-label="Foto profil mahasiswa">
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <circle cx="12" cy="8" r="4"/>
-        <path d="M4 21c.5-4.5 3.5-7 8-7s7.5 2.5 8 7"/>
-      </svg>
-    </div>
-
+    <div class="avatar" id="avatar" aria-label="ProMed Hub">PM</div>
     <div class="top-profile-details">
-      <div class="top-profile-name">
-        <b id="userName">-</b>
-        <span id="userSemester" class="semester-chip" style="display:none"></span>
-      </div>
-      <small id="userMeta">-</small>
+      <div class="top-profile-name"><b id="userName">Mahasiswa ProMed</b></div>
+      <small id="userMeta">Akses informasi perkuliahan</small>
     </div>
   </div>
-
+  <div class="top-admin-actions" style="display:flex;align-items:center;gap:8px;margin-left:auto;margin-right:12px">
+    <button type="button" class="btn soft" id="adminAccessBtn" onclick="openAdminLogin()">Admin</button>
+    <button type="button" class="btn soft" id="adminLogoutBtn" onclick="logoutAdmin()" style="display:none">Keluar Admin</button>
+  </div>
   <button
     type="button"
     class="notification-btn"
@@ -2221,8 +2188,7 @@ body {
       </h2>
 
       <p>
-        Satu tempat untuk mengelola materi, kuis, tugas,
-        dan karya mahasiswa Produksi Media.
+        Pusat informasi materi, kuis, tugas, dan kebutuhan perkuliahan mahasiswa Produksi Media.
       </p>
     </div>
 
@@ -2278,7 +2244,7 @@ body {
         <path d="M2 20h20l-2-4H4z"/>
       </svg>
     </div>
-    <div><p>Device Terdaftar</p><strong id="statD">—</strong></div>
+    <div><p>Tugas Selesai di Perangkat</p><strong id="statDone">0</strong></div>
   </div>
 </div>
 
@@ -2427,7 +2393,7 @@ body {
     <div class="page-hero-copy">
       <div class="page-kicker"><span></span> TUGAS PERKULIAHAN</div>
       <h2>Manajemen Tugas<br><span>Produksi Media.</span></h2>
-      <p>Lihat instruksi, perhatikan deadline, dan kumpulkan tugas dari setiap mata kuliah.</p>
+      <p>Lihat instruksi dan deadline. Setelah mengumpulkan tugas di platform resmi, tandai progresnya di sini.</p>
     </div>
   </div>
 
@@ -2444,9 +2410,12 @@ body {
   <div class="grid stats page-stats assignment-stats">
     <div class="card stat"><div class="ico"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/></svg></div><div><p>Total Tugas</p><strong id="assignmentStatTotal">0</strong></div></div>
     <div class="card stat"><div class="ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div><div><p>Memiliki Deadline</p><strong id="assignmentStatDeadline">0</strong></div></div>
-    <div class="card stat"><div class="ico"><svg viewBox="0 0 24 24"><path d="M4 5h16v14H4z"/><path d="M8 9h8M8 13h8M8 17h4"/></svg></div><div><p>Pengumpulan</p><strong id="assignmentStatSubmissions">0</strong></div></div>
+    <div class="card stat"><div class="ico"><svg viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/><circle cx="12" cy="12" r="9"/></svg></div><div><p>Selesai di Perangkat Ini</p><strong id="assignmentStatCompleted">0</strong></div></div>
   </div>
 
+  <div class="note" style="margin:14px 0">
+    Checklist ini hanya untuk mencatat progres pribadi di browser/perangkat yang sedang digunakan. File tugas tetap dikumpulkan melalui website atau platform resmi dari dosen/kampus. ProMed Hub tidak mengunggah file dan tidak mengirim status checklist ke admin.
+  </div>
   <div class="card page-filter-card">
     <div class="toolbar page-toolbar">
       <input id="assignmentSearch" placeholder="Cari judul tugas..." oninput="renderAssignments()" aria-label="Cari judul tugas">
@@ -2467,209 +2436,86 @@ body {
 </section>
     <section id="calendar" class="view content"><div class="section-head"><div><h3>Kalender Akademik</h3><p>Ringkasan agenda yang diambil dari data tugas/kegiatan ProMed.</p></div></div><div class="grid cols3" id="calendarCards"></div></section>
 
-    <section id="works" class="view content">
-  <div class="page-hero works-hero">
-    <div class="page-hero-copy">
-      <div class="page-kicker"><span></span> PORTOFOLIO MAHASISWA</div>
-      <h2>Karya &amp; Dokumentasi<br><span>Produksi Media.</span></h2>
-      <p>Kumpulkan dan kelola hasil karya, proyek, serta pengumpulan tugasmu di satu tempat.</p>
-    </div>
-  </div>
-
-  <div class="page-section-head">
-    <div class="dashboard-section-heading">
-      <span class="dashboard-section-icon page-heading-icon">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16v13H4z"/><path d="m4 16 5-5 4 4 3-3 4 4"/><circle cx="9" cy="10" r="1.5"/></svg>
-      </span>
-      <div><h3>Karya Saya</h3><p>Daftar pengumpulan karya dari akun yang sedang login.</p></div>
-    </div>
-    <button class="btn primary" onclick="openSubmissionModal()">+ Upload Karya</button>
-  </div>
-
-  <div class="grid stats page-stats works-stats">
-    <div class="card stat"><div class="ico"><svg viewBox="0 0 24 24"><path d="M4 5h16v14H4z"/><path d="m4 15 5-5 4 4 3-3 4 4"/></svg></div><div><p>Total Karya</p><strong id="worksStatCount">0</strong></div></div>
-    <div class="card stat"><div class="ico"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/></svg></div><div><p>Tugas Terkait</p><strong id="worksStatTasks">0</strong></div></div>
-    <div class="card stat"><div class="ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div><div><p>Pengumpulan Terbaru</p><strong id="worksStatLatest">-</strong></div></div>
-  </div>
-
-  <div class="card works-collection-card">
-    <div class="section-head works-list-heading">
-      <div><h3>Riwayat Karya</h3><p>File yang pernah kamu kumpulkan melalui ProMed Hub.</p></div>
-    </div>
-    <div id="worksTable" class="grid works-grid"></div>
-  </div>
-</section>
+    
     <section id="admin" class="view content">
   <div class="page-hero admin-hero">
     <div class="page-hero-copy">
       <div class="page-kicker"><span></span> ADMIN PANEL</div>
       <h2>Kelola Sistem<br><span>ProMed Hub.</span></h2>
-      <p>Atur data mata kuliah, materi, kuis, tugas, pengumuman, dan pengguna dalam satu pusat kendali.</p>
+      <p>Kelola mata kuliah, materi, kuis, tugas, template, dan pengumuman. Tidak perlu menambahkan akun mahasiswa.</p>
     </div>
-    <button class="btn admin-refresh-btn" onclick="adminRefresh()">↻ Refresh Data</button>
+    <button class="btn admin-refresh-btn" onclick="refreshAdminData()">↻ Refresh Data</button>
   </div>
 
   <div class="page-section-head admin-overview-heading">
     <div class="dashboard-section-heading">
       <span class="dashboard-section-icon page-heading-icon"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="m7 14 4-4 3 3 6-7"/></svg></span>
-      <div><h3>Ringkasan Sistem</h3><p>Pantau aktivitas dan kapasitas portal ProMed.</p></div>
+      <div><h3>Ringkasan Konten</h3><p>Jumlah konten yang sedang dipublikasikan.</p></div>
     </div>
   </div>
   <div class="grid stats admin-stats">
-    <div class="card stat"><div class="ico"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.4-3.7 2.5-5.5 6.5-5.5 2 0 3.5.6 4.6 1.7"/><path d="M16 11a3 3 0 1 0 0-6M16 15c3.3 0 5 1.7 5.5 5"/></svg></div><div><p>Mahasiswa</p><strong id="aStudents">0</strong></div></div>
-    <div class="card stat"><div class="ico"><svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 11h8M8 15h5"/></svg></div><div><p>Device Aktif</p><strong id="aDevices">0 / 45</strong></div></div>
-    <div class="card stat"><div class="ico"><svg viewBox="0 0 24 24"><path d="M4 5h16v14H4z"/><path d="M8 9h8M8 13h8M8 17h5"/></svg></div><div><p>Pengumpulan</p><strong id="aSubs">0</strong></div></div>
-    <div class="card stat"><div class="ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16 9"/></svg></div><div><p>Status Sistem</p><strong class="admin-status-value">Aktif</strong></div></div>
+    <div class="card stat"><div class="ico">▣</div><div><p>Mata Kuliah</p><strong id="aCourses">0</strong></div></div>
+    <div class="card stat"><div class="ico">📚</div><div><p>Materi</p><strong id="aMaterials">0</strong></div></div>
+    <div class="card stat"><div class="ico">✓</div><div><p>Kuis</p><strong id="aQuizzes">0</strong></div></div>
+    <div class="card stat"><div class="ico">☑</div><div><p>Tugas</p><strong id="aAssignments">0</strong></div></div>
   </div>
 
-  <div class="grid cols2"><div class="card"><div class="section-head"><div><h3>Pengaturan Device</h3><p>Contoh: ubah 45 → 60 tanpa edit kode.</p></div></div><div class="field"><label>Total device yang diizinkan</label><input id="maxDevices" type="number" min="1"></div><div class="field"><label>Maksimum device per mahasiswa</label><input id="maxPerStudent" type="number" min="1" max="10"></div><button class="btn primary" onclick="saveSettings()">Simpan Pengaturan</button></div>
-      <div class="card"><div class="section-head"><div><h3>Tambah Mahasiswa</h3><p>Admin memasukkan NPM dan tanggal lahir untuk verifikasi login.</p></div></div><div class="field"><label>Nama</label><input id="newName" placeholder="Nama mahasiswa"></div><div class="field"><label>NPM</label><input id="newNpm" inputmode="numeric" placeholder="26758023"></div><div class="field"><label>Tanggal lahir</label><input id="newDob" type="date"></div><button class="btn primary" onclick="addStudent()">Tambah Mahasiswa</button></div></div>
-      <div class="card" style="margin-top:15px">
-  <div class="section-head">
-    <div>
-      <h3>Kelola Mata Kuliah</h3>
-      <p>Tambah dan perbarui nama mata kuliah, dosen, serta semester.</p>
+  <div class="card" style="margin-top:15px">
+    <div class="section-head">
+      <div><h3>Kelola Mata Kuliah</h3><p>Tambah dan perbarui nama mata kuliah, dosen, serta semester.</p></div>
+      <button class="btn primary" onclick="openCourseModal()">+ Tambah Mata Kuliah</button>
     </div>
-    <button class="btn primary" onclick="openCourseModal()">
-      + Tambah Mata Kuliah
-    </button>
-  </div>
-
-  <div class="table-wrap">
-    <table class="table">
-      <thead>
-        <tr>
-          <th>Nama Mata Kuliah</th>
-          <th>Semester</th>
-          <th>Dosen</th>
-          <th>Status</th>
-          <th>Aksi</th>
-        </tr>
-      </thead>
-      <tbody id="adminCoursesTable">
-        <tr>
-          <td colspan="5" class="empty">Memuat mata kuliah...</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-</div>
-      <div class="card" style="margin-top:15px">
-  <div class="section-head">
-    <div>
-      <h3>📢 Kelola Pengumuman</h3>
-      <p>Buat dan atur informasi untuk seluruh mahasiswa.</p>
-    </div>
-    <button class="btn primary"
-      onclick="openAnnouncementModal()">
-      + Buat Pengumuman
-    </button>
-  </div>
-
-  <div class="table-wrap">
-    <table class="table">
-      <thead>
-        <tr>
-          <th>Judul</th>
-          <th>Kategori</th>
-          <th>Status</th>
-          <th>Penting</th>
-          <th>Tanggal</th>
-          <th>Aksi</th>
-        </tr>
-      </thead>
-      <tbody id="adminAnnouncementsTable">
-        <tr>
-          <td colspan="6" class="empty">
-            Memuat pengumuman...
-          </td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-</div>
-      <div class="card" style="margin-top:15px">
-  <div class="section-head">
-    <div>
-      <h3>Upload Template</h3>
-      <p>Upload template makalah, PPT, laporan, atau file pendukung lainnya.</p>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>Nama Mata Kuliah</th><th>Semester</th><th>Dosen</th><th>Status</th><th>Aksi</th></tr></thead>
+        <tbody id="adminCoursesTable"><tr><td colspan="5" class="empty">Memuat mata kuliah...</td></tr></tbody>
+      </table>
     </div>
   </div>
 
-  <button class="btn primary" onclick="openTemplateModal()">
-    + Tambah Template
-  </button>
-</div>
-      <div class="card" style="margin-top:15px">
-        <div class="section-head">
-          <div>
-            <h3>Daftar Template</h3>
-            <p>Kelola template yang sudah diunggah. Penghapusan akan menghapus file dan datanya.</p>
-          </div>
-        </div>
-        <div class="table-wrap">
-          <table class="table">
-            <thead><tr><th>Judul Template</th><th>Mata Kuliah</th><th>File</th><th>Aksi</th></tr></thead>
-            <tbody id="adminTemplatesTable"><tr><td colspan="4" class="empty">Belum ada template.</td></tr></tbody>
-          </table>
-        </div>
-      </div>
-      <div class="card" style="margin-top:15px"><div class="section-head"><div><h3>Daftar Mahasiswa</h3><p>Reset device digunakan ketika mahasiswa perlu berpindah perangkat.</p></div></div><div class="table-wrap"><table class="table"><thead><tr><th>Nama</th><th>NPM</th><th>Device</th><th>Status</th><th>Aksi</th></tr></thead><tbody id="studentsTable"></tbody></table></div></div>
-      <div class="card" style="margin-top:15px"><div class="section-head"><div><h3>Semua Pengumpulan</h3><p>Admin dapat melihat seluruh karya mahasiswa.</p></div></div><div class="table-wrap"><table class="table"><thead><tr><th>Mahasiswa</th><th>NPM</th><th>Tugas</th><th>Karya</th><th>Waktu</th><th>Aksi</th></tr></thead><tbody id="adminSubs"></tbody></table></div></div>
-    </section>
-
-    <section id="searchResults" class="view content"><div class="section-head"><div><h3>Hasil Pencarian</h3><p id="searchLabel">-</p></div></div><div class="card" id="searchBox"></div></section>
-  <section id="profile" class="view content">
-  <div class="page-hero profile-hero">
-    <div class="page-hero-copy">
-      <div class="page-kicker"><span></span> PROFIL MAHASISWA</div>
-      <h2>Informasi &amp; Akun<br><span>ProMed Hub.</span></h2>
-      <p>Kelola identitas, informasi akademik, dan foto profil akunmu.</p>
+  <div class="card" style="margin-top:15px">
+    <div class="section-head">
+      <div><h3>Kelola Pengumuman</h3><p>Buat dan atur informasi untuk seluruh mahasiswa.</p></div>
+      <button class="btn primary" onclick="openAnnouncementModal()">+ Buat Pengumuman</button>
+    </div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>Judul</th><th>Kategori</th><th>Status</th><th>Penting</th><th>Tanggal</th><th>Aksi</th></tr></thead>
+        <tbody id="adminAnnouncementsTable"><tr><td colspan="6" class="empty">Memuat pengumuman...</td></tr></tbody>
+      </table>
     </div>
   </div>
 
-  <div class="profile-layout">
-    <div class="card profile-identity-card">
-      <div class="profile-identity-top">
-        <div id="profileAvatar" class="profile-avatar-large">
-          <span id="profileAvatarPlaceholder">👤</span>
-          <img id="profilePhoto" alt="Foto profil mahasiswa" style="display:none;width:100%;height:100%;object-fit:cover">
-        </div>
-        <span class="badge green profile-label">MAHASISWA PROMED</span>
-      </div>
-      <h3 id="profileDisplayName">Mahasiswa ProMed</h3>
-      <p id="profileDisplayNpm">NPM: -</p>
-      <div class="profile-photo-actions">
-        <input id="profilePhotoInput" type="file" accept="image/jpeg,image/png,image/webp" onchange="previewProfilePhoto(event)">
-        <button type="button" class="btn soft" id="profilePhotoButton" onclick="uploadProfilePhoto()">Unggah Foto</button>
-      </div>
-      <small class="profile-photo-help">JPG, PNG, atau WEBP. Maksimal 2 MB.</small>
-      <div id="profilePhotoMessage" class="profile-photo-message"></div>
-      <div class="profile-identity-foot">
-        <span class="profile-foot-icon"><svg viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></svg></span>
-        <span>Informasi akun dikelola melalui profil mahasiswa.</span>
-      </div>
+  <div class="card" style="margin-top:15px">
+    <div class="section-head">
+      <div><h3>Kelola Template</h3><p>Upload template makalah, PPT, laporan, logbook, dan naskah.</p></div>
+      <button class="btn primary" onclick="openTemplateModal()">+ Tambah Template</button>
     </div>
-
-    <div class="card profile-form-card">
-      <div class="section-head profile-form-heading">
-        <div><h3>Informasi Akademik</h3><p>Perbarui data program studi dan semester.</p></div>
-      </div>
-      <form id="profileForm">
-        <div><label for="profileName">Nama mahasiswa</label><input id="profileName" type="text" readonly></div>
-        <div><label for="profileNpm">NPM</label><input id="profileNpm" type="text" readonly></div>
-        <div><label for="profileProgram">Program studi</label><input id="profileProgram" type="text" maxlength="100" placeholder="Contoh: Produksi Media"></div>
-        <div><label for="profileCohort">Tahun angkatan</label><input id="profileCohort" type="text" maxlength="20" placeholder="Contoh: 2026"></div>
-        <div><label for="profileSemester">Semester</label><input id="profileSemester" type="text" maxlength="40" placeholder="Contoh: Semester 1"></div>
-        <div id="profileMessage"></div>
-        <button type="submit" class="btn primary">Simpan Profil</button>
-      </form>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>Judul Template</th><th>Mata Kuliah</th><th>File</th><th>Aksi</th></tr></thead>
+        <tbody id="adminTemplatesTable"><tr><td colspan="4" class="empty">Belum ada template.</td></tr></tbody>
+      </table>
     </div>
   </div>
 </section>
+
+    <section id="searchResults" class="view content"><div class="section-head"><div><h3>Hasil Pencarian</h3><p id="searchLabel">-</p></div></div><div class="card" id="searchBox"></div></section>
+  
 </main>
 </div>
 
+<div id="adminLoginModal" class="modalback" onclick="adminLoginOutside(event)">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="adminLoginTitle" onclick="event.stopPropagation()">
+    <h3 id="adminLoginTitle">Masuk sebagai Admin</h3>
+    <p>Login ini hanya untuk mengelola konten ProMed Hub. Mahasiswa tidak perlu login.</p>
+    <form id="adminLoginForm" onsubmit="adminLogin(event)">
+      <div class="field"><label for="adminKey">Admin Key</label><input id="adminKey" type="password" autocomplete="current-password" placeholder="Masukkan admin key" required></div>
+      <div id="adminLoginMessage" aria-live="polite"></div>
+      <div class="modal-actions"><button type="button" class="btn soft" onclick="closeAdminLogin()">Batal</button><button type="submit" class="btn primary">Masuk Admin</button></div>
+    </form>
+  </div>
+</div>
 <div id="modalBack" class="modalback" onclick="modalOutside(event)"><div class="modal" onclick="event.stopPropagation()"><h3 id="modalTitle">-</h3><p id="modalDesc">-</p><div id="modalBody"></div><div class="modal-actions"><button class="btn soft" onclick="closeModal()">Batal</button><button id="modalSave" class="btn primary">Simpan</button></div></div></div>
 <script>
 const S={
@@ -2688,340 +2534,171 @@ adminCourses:[]
 };
 const $ = id => document.getElementById(String(id).replace(/^#/, ''));
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
-function msg(t,ok=false){$('authMsg').innerHTML=`<div class="note" style="${ok?'background:#eaf8f3;border-color:#caeee1;color:#197353':'background:#fff1f2;border-color:#f2d0d5;color:#9c2230'}">${esc(t)}</div>`}
 async function api(path, opts = {}) {
   const headers = new Headers(opts.headers || {});
   const adminToken = sessionStorage.getItem('promed_admin_token');
+  if (adminToken) headers.set('Authorization', `Bearer ${adminToken}`);
 
-  if (adminToken) {
-    headers.set('Authorization', `Bearer ${adminToken}`);
-  }
-
-  const r = await fetch(path, {
+  const response = await fetch(path, {
     credentials: 'same-origin',
     ...opts,
     headers
   });
-
-  const d = await r.json().catch(() => ({}));
-
-  if (!r.ok) {
-    throw new Error(d.message || 'Permintaan gagal');
-  }
-
-  return d;
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.message || 'Permintaan gagal.');
+  return data;
 }
-function setAuthMode(mode){$('studentTab').classList.toggle('active',mode==='student');$('adminTab').classList.toggle('active',mode==='admin');$('studentLogin').style.display=mode==='student'?'block':'none';$('adminLogin').style.display=mode==='admin'?'block':'none';$('authMsg').innerHTML=''}
-async function studentLogin(e){e.preventDefault();try{const d=await api('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({npm:$('npm').value.trim(),birth_date:$('dob').value})});S.role='student';S.user=d.user;await bootApp()}catch(e){msg(e.message)}}
-async function adminLogin(e) {
-  e.preventDefault();
 
+function openAdminLogin() {
+  const message = $('adminLoginMessage');
+  if (message) message.innerHTML = '';
+  $('adminLoginModal').classList.add('show');
+  setTimeout(() => $('adminKey')?.focus(), 50);
+}
+function closeAdminLogin() {
+  $('adminLoginModal').classList.remove('show');
+  $('adminLoginForm')?.reset();
+  const message = $('adminLoginMessage');
+  if (message) message.innerHTML = '';
+}
+function adminLoginOutside(event) {
+  if (event.target === $('adminLoginModal')) closeAdminLogin();
+}
+async function adminLogin(event) {
+  event.preventDefault();
+  const message = $('adminLoginMessage');
+  const button = $('adminLoginForm')?.querySelector('button[type="submit"]');
+  if (button) button.disabled = true;
+  if (message) message.innerHTML = '';
   try {
-    const keyEl = document.getElementById('adminKey');
-
-    if (!keyEl) {
-      throw new Error('Form Admin tidak ditemukan. Silakan muat ulang halaman.');
-    }
-
-    const d = await api('/api/admin/login', {
+    const result = await api('/api/admin/login', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        key: keyEl.value
-      })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: $('adminKey').value })
     });
-
-    if (d.admin_token) {
-      sessionStorage.setItem('promed_admin_token', d.admin_token);
-    }
-
+    if (result.admin_token) sessionStorage.setItem('promed_admin_token', result.admin_token);
+    closeAdminLogin();
     await boot();
-
-  } catch (e) {
-    msg(e.message);
-  }
-}
-async function boot(){try{const d=await api('/api/me');if(!d.authenticated)return;S.role=d.role;S.user=d.user||{name:'Administrator',npm:'ADMIN'};await bootApp()}catch{}}
-
-function updateSemesterChip(value) {
-  const chip = $('userSemester');
-  if (!chip) return;
-
-  const raw = String(value || '').trim();
-  const match = raw.match(/^(?:(?:semester|s)\s*)?([1-8])$/i);
-
-  if (S.role !== 'student' || !match) {
-    chip.textContent = '';
-    chip.style.display = 'none';
-    return;
-  }
-
-  chip.textContent = 'S' + match[1];
-  chip.style.display = 'inline-flex';
-}
-
-async function loadHeaderProfile() {
-  try {
-    const data = await api('/api/profile');
-    const p = data.profile || {};
-
-    updateSemesterChip(p.semester);
-    setProfilePhotoView(!!p.photo_key, p.updated_at || Date.now());
+    showView('admin');
   } catch (error) {
-    updateSemesterChip('');
+    if (message) message.innerHTML = `<div class="note" style="background:#fff1f2;border-color:#f2d0d5;color:#9c2230">${esc(error.message)}</div>`;
+  } finally {
+    if (button) button.disabled = false;
+  }
+}
+
+async function boot() {
+  try {
+    const session = await api('/api/me');
+    S.role = session.authenticated && session.role === 'admin' ? 'admin' : 'public';
+    S.user = S.role === 'admin' ? { name: 'Administrator' } : null;
+    await bootApp();
+  } catch (error) {
+    console.error('ProMed Hub gagal memuat sesi:', error);
+    S.role = 'public';
+    S.user = null;
+    await bootApp();
   }
 }
 
 async function bootApp() {
-  $('auth').style.display = 'none';
   $('app').style.display = 'flex';
   document.body.classList.toggle('admin', S.role === 'admin');
+  $('userName').textContent = S.role === 'admin' ? 'Administrator' : 'Mahasiswa ProMed';
+  $('userMeta').textContent = S.role === 'admin' ? 'Admin Panel' : 'Akses informasi perkuliahan';
+  $('avatar').textContent = S.role === 'admin' ? 'AD' : 'PM';
+  $('adminAccessBtn').style.display = S.role === 'admin' ? 'none' : 'inline-flex';
+  $('adminLogoutBtn').style.display = S.role === 'admin' ? 'inline-flex' : 'none';
+  const adminNav = document.querySelector('[data-view="admin"]');
+  if (adminNav) adminNav.style.display = S.role === 'admin' ? 'flex' : 'none';
 
-  $('userName').textContent =
-    S.role === 'admin' ? 'Administrator' : S.user.name;
-
-  $('userMeta').textContent =
-    S.role === 'admin' ? 'Admin Panel' : 'NPM ' + S.user.npm;
-
-  if (S.role === 'admin') {
-    $('avatar').textContent = 'AD';
-    $('userSemester').style.display = 'none';
-    document.querySelector('[data-view="admin"]').style.display = 'flex';
-    await adminRefresh();
-  } else {
-    document.querySelector('[data-view="admin"]').style.display = 'none';
-    await loadHeaderProfile();
-  }
-
+  if (S.role === 'admin') await adminRefresh();
   await loadAll();
   showView('dashboard');
 }
 
-async function logout(){await api(S.role==='admin'?'/api/admin/logout':'/api/logout',{method:'POST'}).catch(()=>{});location.reload()}
+async function logoutAdmin() {
+  try { await api('/api/admin/logout', { method: 'POST' }); } catch (error) { console.warn(error); }
+  sessionStorage.removeItem('promed_admin_token');
+  S.role = 'public';
+  S.user = null;
+  document.body.classList.remove('admin');
+  await bootApp();
+}
+
 async function loadAll() {
-  const [c, m, q, a, s, t, announcements] =
-    await Promise.all([
-      api('/api/courses'),
-      api('/api/materials'),
-      api('/api/quizzes'),
-      api('/api/assignments'),
-      api('/api/submissions'),
-      api('/api/templates'),
-      api('/api/announcements')
-    ]);
-
-  S.courses = c.items || [];
-  S.materials = m.items || [];
-  S.quizzes = q.items || [];
-  S.assignments = a.items || [];
-  S.submissions = s.items || [];
-  S.templates = t.items || [];
+  const [courses, materials, quizzes, assignments, templates, announcements] = await Promise.all([
+    api('/api/courses'),
+    api('/api/materials'),
+    api('/api/quizzes'),
+    api('/api/assignments'),
+    api('/api/templates'),
+    api('/api/announcements')
+  ]);
+  S.courses = courses.items || [];
+  S.materials = materials.items || [];
+  S.quizzes = quizzes.items || [];
+  S.assignments = assignments.items || [];
+  S.templates = templates.items || [];
   S.announcements = announcements.items || [];
-
   renderAll();
 }
-function showView(id, preserveCourse=false){
-  if(!preserveCourse){
-    S.selectedCourse = null;
+
+function showView(id, preserveCourse = false) {
+  if (!preserveCourse) S.selectedCourse = null;
+  const target = $(id);
+  if (!target) return;
+  if (id === 'admin' && S.role !== 'admin') {
+    openAdminLogin();
+    return;
   }
-
-  document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
-  $(id).classList.add('active');
-
-  document.querySelectorAll('.nav button').forEach(b =>
-    b.classList.toggle('active', b.dataset.view === id)
-  );
+  document.querySelectorAll('.view').forEach(view => view.classList.remove('active'));
+  target.classList.add('active');
+  document.querySelectorAll('.nav button').forEach(button => {
+    button.classList.toggle('active', button.dataset.view === id);
+  });
   $('sidebar').classList.remove('open');
-  window.scrollTo({top:0,behavior:'smooth'});
-  if(id==='profile' && S.role==='student') loadProfile();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
-document.querySelectorAll('.nav button').forEach(b=>b.addEventListener('click',()=>showView(b.dataset.view)));function toggleSide(){$('sidebar').classList.toggle('open')}
+document.querySelectorAll('.nav button').forEach(button => {
+  button.addEventListener('click', () => showView(button.dataset.view));
+});
+function toggleSide() { $('sidebar').classList.toggle('open'); }
 function openNotifications() {
   showView('dashboard');
-
-  setTimeout(() => {
-    const announcementBox = $('announcementList');
-
-    if (announcementBox) {
-      announcementBox.scrollIntoView({
-        behavior: 'smooth',
-        block: 'center'
-      });
-    }
-  }, 150);
-}
-function setProfilePhotoView(hasPhoto, cacheKey='') {
-  const photo = $('profilePhoto');
-  const placeholder = $('profileAvatarPlaceholder');
-  const topAvatar = $('avatar');
-
-  if (hasPhoto) {
-    const photoUrl = '/api/profile/photo?v=' +
-      encodeURIComponent(cacheKey || Date.now());
-
-    photo.src = photoUrl;
-    photo.style.display = 'block';
-    placeholder.style.display = 'none';
-
-    topAvatar.innerHTML = '';
-    topAvatar.style.backgroundImage = `url("${photoUrl}")`;
-    topAvatar.style.backgroundSize = 'cover';
-    topAvatar.style.backgroundPosition = 'center';
-  } else {
-    photo.removeAttribute('src');
-    photo.style.display = 'none';
-    placeholder.style.display = 'inline';
-
-    topAvatar.style.backgroundImage = 'none';
-
-    if (S.role === 'student') {
-      topAvatar.innerHTML = `
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <circle cx="12" cy="8" r="4"/>
-          <path d="M4 21c.5-4.5 3.5-7 8-7s7.5 2.5 8 7"/>
-        </svg>
-      `;
-    } else {
-      topAvatar.textContent = 'AD';
-    }
-  }
+  setTimeout(() => $('announcementList')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150);
 }
 
-
-function previewProfilePhoto(event){
-  const file = event.target.files?.[0];
-  const message = $('profilePhotoMessage');
-  const allowed = ['image/jpeg','image/png','image/webp'];
-
-  if (!file) return;
-  if (!allowed.includes(file.type)) {
-    message.textContent = 'Format foto harus JPG, PNG, atau WEBP.';
-    message.style.color = '#b91c1c';
-    event.target.value = '';
-    return;
-  }
-  if (file.size > 2 * 1024 * 1024) {
-    message.textContent = 'Ukuran foto maksimal 2 MB.';
-    message.style.color = '#b91c1c';
-    event.target.value = '';
-    return;
-  }
-
-  const reader = new FileReader();
-  reader.onload = () => {
-    $('profilePhoto').src = String(reader.result);
-    $('profilePhoto').style.display = 'block';
-    $('profileAvatarPlaceholder').style.display = 'none';
-    message.textContent = 'Pratinjau foto siap. Klik Unggah Foto untuk menyimpan.';
-    message.style.color = '#536071';
-  };
-  reader.onerror = () => {
-    message.textContent = 'Foto tidak dapat dibaca.';
-    message.style.color = '#b91c1c';
-  };
-  reader.readAsDataURL(file);
-}
-
-async function uploadProfilePhoto(){
-  const input = $('profilePhotoInput');
-  const button = $('profilePhotoButton');
-  const message = $('profilePhotoMessage');
-  const file = input.files?.[0];
-  const allowed = ['image/jpeg','image/png','image/webp'];
-
-  if (!file) {
-    message.textContent = 'Pilih foto terlebih dahulu.';
-    message.style.color = '#b91c1c';
-    return;
-  }
-  if (!allowed.includes(file.type) || file.size > 2 * 1024 * 1024) {
-    message.textContent = 'Pilih JPG, PNG, atau WEBP dengan ukuran maksimal 2 MB.';
-    message.style.color = '#b91c1c';
-    return;
-  }
-
-  const form = new FormData();
-  form.append('photo', file);
-  button.disabled = true;
-  message.textContent = 'Mengunggah foto...';
-  message.style.color = '#536071';
-
+const TASK_CHECKS_KEY = 'promed_hub_task_checks_v1';
+function readTaskChecks() {
   try {
-    const result = await api('/api/profile/photo', {method:'POST', body:form});
-    setProfilePhotoView(true, Date.now());
-    message.textContent = result.message || 'Foto profil berhasil diperbarui.';
-    message.style.color = '#15803d';
-    input.value = '';
+    const saved = JSON.parse(localStorage.getItem(TASK_CHECKS_KEY) || '{}');
+    return saved && typeof saved === 'object' && !Array.isArray(saved) ? saved : {};
   } catch (error) {
-    message.textContent = error.message || 'Gagal mengunggah foto.';
-    message.style.color = '#b91c1c';
-  } finally {
-    button.disabled = false;
+    console.warn('Checklist lokal tidak dapat dibaca:', error);
+    return {};
   }
 }
-
-async function loadProfile(){
-  const message = $('profileMessage');
-
+let taskChecks = readTaskChecks();
+function completedTaskCount() {
+  return S.assignments.filter(item => taskChecks[String(item.id)] === true).length;
+}
+function setAssignmentDone(id, checked) {
+  const key = String(id);
+  taskChecks[key] = Boolean(checked);
   try {
-    const data = await api('/api/profile');
-    const p = data.profile || {};
-    const name = S.user?.name || '';
-    const npm = S.user?.npm || '';
-
-    $('profileName').value = name;
-    $('profileNpm').value = npm;
-    $('profileDisplayName').textContent = name || 'Mahasiswa ProMed';
-    $('profileDisplayNpm').textContent = 'NPM: ' + (npm || '-');
-
-    $('profileProgram').value = p.program_study || '';
-    $('profileCohort').value = p.cohort_year || '';
-    $('profileSemester').value = p.semester || '';
-     updateSemesterChip(p.semester);
-    setProfilePhotoView(!!p.photo_key, p.updated_at || Date.now());
-
-    message.textContent = '';
+    localStorage.setItem(TASK_CHECKS_KEY, JSON.stringify(taskChecks));
   } catch (error) {
-    message.textContent = error.message || 'Gagal memuat profil.';
-    message.style.color = '#b91c1c';
+    alert('Browser tidak dapat menyimpan checklist. Periksa pengaturan penyimpanan browser.');
   }
+  renderAssignments();
+  const statDone = $('statDone');
+  if (statDone) statDone.textContent = completedTaskCount();
 }
 
-$('profileForm').addEventListener('submit', async event => {
-  event.preventDefault();
-
-  const message = $('profileMessage');
-  const button = $('profileForm').querySelector('button[type="submit"]');
-
-  button.disabled = true;
-  message.textContent = 'Menyimpan profil...';
-
-  try {
-    const result = await api('/api/profile', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        program_study: $('profileProgram').value,
-        cohort_year: $('profileCohort').value,
-        semester: $('profileSemester').value
-      })
-    });
-
-    message.textContent = result.message || 'Profil berhasil disimpan.';
-    message.style.color = '#15803d';
-     updateSemesterChip($('profileSemester').value);
-  } catch (error) {
-    message.textContent = error.message || 'Gagal menyimpan profil.';
-    message.style.color = '#b91c1c';
-  } finally {
-    button.disabled = false;
-  }
-});
 function item(title,meta,badge){return `<div class="item"><div class="item-left"><div class="fileico">•</div><div><div class="item-title">${esc(title)}</div><div class="item-meta">${esc(meta)}</div></div></div><span class="badge">${esc(badge)}</span></div>`}
 function renderAll(){
- $('statM').textContent=S.materials.length;$('statQ').textContent=S.quizzes.length;$('statA').textContent=S.assignments.length;$('statD').textContent=S.role==='admin'?'':S.user.npm? '1':'—';
+ $('statM').textContent=S.materials.length;$('statQ').textContent=S.quizzes.length;$('statA').textContent=S.assignments.length;$('statDone').textContent=completedTaskCount();
  $('recentM').innerHTML=S.materials.slice(0,3).map(x=>item(x.title,x.course,x.meeting||'Materi')).join('')||'<div class="empty">Belum ada materi.</div>';
  $('recentQ').innerHTML=S.quizzes.slice(0,3).map(x=>item(x.title,x.course,x.meeting||'Kuis')).join('')||'<div class="empty">Belum ada kuis.</div>';
  renderAnnouncements();
@@ -3032,7 +2709,6 @@ renderQuizzes();
 renderAssignments();
 renderTemplates();
 renderAdminTemplates();
-renderWorks();
 }
  function renderAnnouncements() {
   const box = $('announcementList');
@@ -3267,12 +2943,13 @@ function renderQuizzes(){
     : '<div class="card empty page-empty">Kuis tidak ditemukan. Coba ubah kata pencarian atau filter mata kuliah.</div>';
 }
 
-function renderAssignments(){
+function renderAssignments() {
   const searchEl = $('assignmentSearch');
   const courseEl = $('assignmentCourseFilter');
-  const q = (searchEl?.value || '').trim().toLowerCase();
+  const query = (searchEl?.value || '').trim().toLowerCase();
   const currentCourse = courseEl?.value || '';
-  const courseNames = [...new Set(S.assignments.map(x => x.course).filter(Boolean))].sort((a,b) => a.localeCompare(b, 'id'));
+  const courseNames = [...new Set(S.assignments.map(item => item.course).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, 'id'));
 
   if (courseEl) {
     courseEl.innerHTML = '<option value="">Semua Mata Kuliah</option>' +
@@ -3281,38 +2958,43 @@ function renderAssignments(){
   }
 
   const selectedId = S.selectedCourse ? Number(S.selectedCourse.id) : null;
-  const filtered = S.assignments.filter(x =>
-    (!selectedId || Number(x.course_id) === selectedId) &&
-    (!courseEl?.value || x.course === courseEl.value) &&
-    (!q || [x.title, x.course, x.instructions, x.deadline].join(' ').toLowerCase().includes(q))
+  const filtered = S.assignments.filter(item =>
+    (!selectedId || Number(item.course_id) === selectedId) &&
+    (!courseEl?.value || item.course === courseEl.value) &&
+    (!query || [item.title, item.course, item.instructions, item.deadline].join(' ').toLowerCase().includes(query))
   );
 
-  const statTotal = $('assignmentStatTotal');
-  const statDeadline = $('assignmentStatDeadline');
-  const statSubmissions = $('assignmentStatSubmissions');
-  if (statTotal) statTotal.textContent = S.assignments.length;
-  if (statDeadline) statDeadline.textContent = S.assignments.filter(x => !!x.deadline).length;
-  if (statSubmissions) statSubmissions.textContent = S.submissions.length;
+  const total = S.assignments.length;
+  const deadlineCount = S.assignments.filter(item => Boolean(item.deadline)).length;
+  const doneCount = S.assignments.filter(item => taskChecks[String(item.id)] === true).length;
+  if ($('assignmentStatTotal')) $('assignmentStatTotal').textContent = total;
+  if ($('assignmentStatDeadline')) $('assignmentStatDeadline').textContent = deadlineCount;
+  if ($('assignmentStatCompleted')) $('assignmentStatCompleted').textContent = `${doneCount}/${total}`;
+  if ($('statDone')) $('statDone').textContent = doneCount;
 
   $('assignmentCards').innerHTML = filtered.length
-    ? filtered.map(x => `
-        <div class="card taskcard">
-          <div class="task-card-top">
-            <span class="task-card-icon"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/></svg></span>
-            <span class="badge ${x.deadline ? 'orange' : 'green'}">${x.deadline ? 'DEADLINE ' + esc(x.deadline) : 'TANPA DEADLINE'}</span>
+    ? filtered.map(item => {
+        const done = taskChecks[String(item.id)] === true;
+        return `
+          <div class="card taskcard ${done ? 'taskcard-done' : ''}">
+            <div class="task-card-top">
+              <span class="task-card-icon"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/></svg></span>
+              <span class="badge ${done ? 'green' : (item.deadline ? 'orange' : 'blue')}">${done ? 'SUDAH DITANDAI' : (item.deadline ? 'DEADLINE ' + esc(item.deadline) : 'TANPA DEADLINE')}</span>
+            </div>
+            <h4>${esc(item.title)}</h4>
+            <p class="task-card-course">${esc(item.course)}</p>
+            <p class="task-card-instructions">${esc(item.instructions || 'Tidak ada instruksi tambahan.')}</p>
+            <div class="task-check-row">
+              <label class="task-check-label">
+                <input type="checkbox" ${done ? 'checked' : ''} onchange="setAssignmentDone(${Number(item.id)}, this.checked)">
+                <span>Saya sudah mengerjakan dan mengumpulkan tugas ini melalui platform resmi.</span>
+              </label>
+            </div>
+            <p class="task-local-note">Status ini hanya tersimpan di browser/perangkat ini dan tidak terlihat oleh admin.</p>
+            ${S.role === 'admin' ? `<button class="btn danger task-delete-btn" onclick="del('assignment',${Number(item.id)})">Hapus Tugas</button>` : ''}
           </div>
-          <h4>${esc(x.title)}</h4>
-          <p class="task-card-course">${esc(x.course)}</p>
-          <p class="task-card-instructions">${esc(x.instructions || 'Tidak ada instruksi tambahan.')}</p>
-          <div class="task-card-footer">
-            <span class="task-card-meta">${x.deadline ? 'Perhatikan batas pengumpulan' : 'Waktu pengumpulan tidak dicantumkan'}</span>
-            <button class="btn primary" onclick="openSubmissionModal(${x.id})">Kumpulkan</button>
-          </div>
-          ${S.role === 'admin'
-            ? `<button class="btn danger task-delete-btn" onclick="del('assignment',${x.id})">Hapus Tugas</button>`
-            : ''}
-        </div>
-      `).join('')
+        `;
+      }).join('')
     : '<div class="card empty page-empty">Tugas tidak ditemukan. Coba ubah kata pencarian atau filter mata kuliah.</div>';
 }
   function renderTemplates(){
@@ -3340,7 +3022,7 @@ function renderAssignments(){
           </p>
 
           ${
-           x.file_key
+           x.has_file
   ? `<a
        class="btn primary"
        href="/api/templates/${x.id}/file"
@@ -3379,41 +3061,7 @@ function renderAdminTemplates(){
 }
 
 function renderCalendar(){$('calendarCards').innerHTML=S.assignments.length?S.assignments.slice().sort((a,b)=>(a.deadline||'9999').localeCompare(b.deadline||'9999')).map(x=>`<div class="card"><span class="badge blue">${x.deadline?esc(x.deadline):'TBA'}</span><h4 style="margin:12px 0 4px">${esc(x.title)}</h4><p style="margin:0;color:var(--muted);font-size:12px">${esc(x.course)}</p></div>`).join(''):'<div class="card empty">Belum ada agenda.</div>'}
-function renderWorks(){
-  const box = $('worksTable');
-  if (!box) return;
 
-  const uniqueTasks = new Set(S.submissions.map(x => x.assignment).filter(Boolean)).size;
-  const latest = S.submissions.slice().sort((a,b) => new Date(b.uploaded_at) - new Date(a.uploaded_at))[0];
-  const countEl = $('worksStatCount');
-  const tasksEl = $('worksStatTasks');
-  const latestEl = $('worksStatLatest');
-  if (countEl) countEl.textContent = S.submissions.length;
-  if (tasksEl) tasksEl.textContent = uniqueTasks;
-  if (latestEl) latestEl.textContent = latest?.uploaded_at
-    ? new Date(latest.uploaded_at).toLocaleDateString('id-ID', { day:'2-digit', month:'short' })
-    : '-';
-
-  box.innerHTML = S.submissions.length
-    ? S.submissions.slice().sort((a,b) => new Date(b.uploaded_at) - new Date(a.uploaded_at)).map(x => {
-        const fileName = String(x.file_name || 'File pengumpulan');
-        const extension = fileName.includes('.') ? fileName.split('.').pop().slice(0,6).toUpperCase() : 'FILE';
-        return `
-          <article class="card work-card">
-            <div class="work-card-top">
-              <span class="work-file-icon"><svg viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg></span>
-              <span class="badge green">${esc(extension)}</span>
-            </div>
-            <h4>${esc(x.title || 'Karya tanpa judul')}</h4>
-            <p class="work-card-file">${esc(fileName)}</p>
-            <div class="work-card-meta"><span>Tugas terkait</span><strong>${esc(x.assignment || '-')}</strong></div>
-            <div class="work-card-meta"><span>Waktu pengumpulan</span><strong>${x.uploaded_at ? new Date(x.uploaded_at).toLocaleString('id-ID') : '-'}</strong></div>
-            <a class="btn soft work-open-btn" href="/api/files/submission/${x.id}" target="_blank" rel="noopener">Lihat File</a>
-          </article>
-        `;
-      }).join('')
-    : '<div class="card empty page-empty">Belum ada karya yang dikumpulkan. Karya yang kamu unggah melalui tugas akan muncul di sini.</div>';
-}
   function openTemplateModal(){
   $('modalTitle').textContent = 'Upload Template';
   $('modalDesc').textContent = 'Template akan tersedia untuk mahasiswa sesuai mata kuliah yang dipilih.';
@@ -3534,8 +3182,6 @@ function openQuizModal(){$('modalTitle').textContent='Upload Kuis';$('modalDesc'
 async function saveQuiz(){const fd=new FormData();fd.set('title',$('fTitle').value);fd.set('course',$('fCourse').value);fd.set('meeting',$('fMeeting').value);const f=$('fFile').files[0];if(f)fd.set('file',f);try{await api('/api/admin/quizzes',{method:'POST',body:fd});closeModal();await loadAll();alert('Kuis berhasil dipublikasikan.')}catch(e){alert(e.message)}}
 function openAssignmentModal(){$('modalTitle').textContent='Buat Tugas';$('modalDesc').textContent='Instruksi tugas akan tampil untuk semua mahasiswa.';$('modalBody').innerHTML=`<div class="field"><label>Judul tugas</label><input id="fTitle" placeholder="Analisis Representasi Gender"></div><div class="field"><label>Mata kuliah</label><input id="fCourse" placeholder="Media, Gender & Representasi"></div><div class="field"><label>Deadline</label><input id="fDeadline" type="date"></div><div class="field"><label>Instruksi</label><textarea id="fInstructions" placeholder="Tuliskan instruksi tugas..."></textarea></div>`;$('modalSave').onclick=saveAssignment;openModal()}
 async function saveAssignment(){try{await api('/api/admin/assignments',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({title:$('fTitle').value,course:$('fCourse').value,deadline:$('fDeadline').value,instructions:$('fInstructions').value})});closeModal();await loadAll();alert('Tugas berhasil dibuat.')}catch(e){alert(e.message)}}
-function openSubmissionModal(id){const a=id?S.assignments.find(x=>x.id===id):S.assignments[0];if(!a){alert('Belum ada tugas.');return}$('modalTitle').textContent='Upload Karya';$('modalDesc').textContent='File ini hanya menjadi pengumpulan milik akun mahasiswa yang sedang login.';$('modalBody').innerHTML=`<div class="field"><label>Tugas</label><select id="fAssign">${S.assignments.map(x=>`<option value="${x.id}" ${x.id===a.id?'selected':''}>${esc(x.title)}</option>`).join('')}</select></div><div class="field"><label>Nama karya</label><input id="fTitle" placeholder="Contoh: Poster Representasi Gender"></div><div class="field"><label>File</label><input id="fFile" type="file" required></div>`;$('modalSave').onclick=saveSubmission;openModal()}
-async function saveSubmission(){const fd=new FormData();fd.set('assignment_id',$('fAssign').value);fd.set('title',$('fTitle').value);const f=$('fFile').files[0];if(!f){alert('Pilih file karya.');return}fd.set('file',f);try{await api('/api/submissions',{method:'POST',body:fd});closeModal();await loadAll();showView('works');alert('Karya berhasil dikumpulkan.')}catch(e){alert(e.message)}}
 async function del(type,id){if(!confirm('Hapus item ini?'))return;const path=type==='material'?`/api/admin/materials/${id}`:type==='quiz'?`/api/admin/quizzes/${id}`:`/api/admin/assignments/${id}`;try{await api(path,{method:'DELETE'});await loadAll()}catch(e){alert(e.message)}}
 function renderAdminCourses() {
   const tbody = $('adminCoursesTable');
@@ -3860,88 +3506,40 @@ async function deleteAnnouncement(id) {
   }
 }
   
-  async function adminRefresh() {
+async function refreshAdminData() {
+  await adminRefresh();
+  await loadAll();
+}
+
+async function adminRefresh() {
   if (S.role !== 'admin') return;
-
   try {
-    const [sum, students, subs, courses, announcements] =
-  await Promise.all([
-    api('/api/admin/summary'),
-    api('/api/admin/students'),
-    api('/api/admin/submissions'),
-    api('/api/admin/courses'),
-    api('/api/admin/announcements')
-  ]);
-
-    // Statistik admin
-    $('aStudents').textContent = students.items.length;
-    $('aDevices').textContent =
-      `${sum.device_used} / ${sum.max_devices}`;
-    $('aSubs').textContent = sum.submissions;
-
-    $('maxDevices').value = sum.max_devices;
-    $('maxPerStudent').value = sum.max_devices_per_student;
-
-    // Daftar mahasiswa
-    $('studentsTable').innerHTML = students.items.length
-      ? students.items.map(x => `
-          <tr>
-            <td><strong>${esc(x.name)}</strong></td>
-            <td>${esc(x.npm)}</td>
-            <td>${x.devices}</td>
-            <td>
-              <span class="badge ${x.active ? 'green' : 'orange'}">
-                ${x.active ? 'AKTIF' : 'NONAKTIF'}
-              </span>
-            </td>
-            <td>
-              <button class="btn soft" onclick="resetDevice(${x.id})">
-                Reset Device
-              </button>
-            </td>
-          </tr>
-        `).join('')
-      : '<tr><td colspan="5" class="empty">Belum ada mahasiswa.</td></tr>';
-
-    // Daftar pengumpulan
-    $('adminSubs').innerHTML = subs.items.length
-      ? subs.items.map(x => `
-          <tr>
-            <td><strong>${esc(x.name)}</strong></td>
-            <td>${esc(x.npm)}</td>
-            <td>${esc(x.assignment)}</td>
-            <td>${esc(x.title)}</td>
-            <td>${new Date(x.uploaded_at).toLocaleString('id-ID')}</td>
-            <td>
-              <a class="btn soft"
-                 href="/api/files/submission/${x.id}"
-                 target="_blank">
-                Buka
-              </a>
-            </td>
-          </tr>
-        `).join('')
-      : '<tr><td colspan="6" class="empty">Belum ada pengumpulan.</td></tr>';
-
-    // Daftar mata kuliah dari database
+    const [summary, courses, announcements] = await Promise.all([
+      api('/api/admin/summary'),
+      api('/api/admin/courses'),
+      api('/api/admin/announcements')
+    ]);
+    $('aCourses').textContent = summary.courses || 0;
+    $('aMaterials').textContent = summary.materials || 0;
+    $('aQuizzes').textContent = summary.quizzes || 0;
+    $('aAssignments').textContent = summary.assignments || 0;
     S.adminCourses = courses.items || [];
-S.adminAnnouncements = announcements.items || [];
-
-renderAdminCourses();
-renderAdminAnnouncements();
+    S.adminAnnouncements = announcements.items || [];
+    renderAdminCourses();
+    renderAdminAnnouncements();
   } catch (error) {
     console.error('Admin refresh gagal:', error);
     alert(error.message || 'Gagal memuat Admin Panel.');
   }
 }
-async function addStudent(){try{await api('/api/admin/students',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:$('newName').value,npm:$('newNpm').value,birth_date:$('newDob').value})});$('newName').value='';$('newNpm').value='';$('newDob').value='';await adminRefresh();alert('Mahasiswa ditambahkan.')}catch(e){alert(e.message)}}
-async function resetDevice(id){if(!confirm('Reset device mahasiswa ini?'))return;try{await api(`/api/admin/students/${id}/reset-device`,{method:'POST'});await adminRefresh();alert('Device berhasil di-reset.')}catch(e){alert(e.message)}}
-async function saveSettings(){try{const d=await api('/api/admin/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({max_devices:Number($('maxDevices').value),max_devices_per_student:Number($('maxPerStudent').value)})});$('aDevices').textContent=`${d.device_used} / ${d.max_devices}`;alert('Pengaturan device disimpan.')}catch(e){alert(e.message)}}
+
 function searchAll(q){q=q.trim().toLowerCase();if(!q){showView('dashboard');return}const arr=[...S.materials.map(x=>({type:'Materi',title:x.title,meta:x.course})),...S.quizzes.map(x=>({type:'Kuis',title:x.title,meta:x.course})),...S.assignments.map(x=>({type:'Tugas',title:x.title,meta:x.course}))].filter(x=>(x.title+' '+x.meta).toLowerCase().includes(q));$('searchLabel').textContent=`${arr.length} hasil untuk “${q}”`;$('searchBox').innerHTML=arr.length?arr.map(x=>item(x.title,x.meta,x.type)).join(''):'<div class="empty">Tidak ada hasil.</div>';showView('searchResults')}
 function openModal(){$('modalBack').classList.add('show')}function closeModal(){$('modalBack').classList.remove('show')}function modalOutside(e){if(e.target===$('modalBack'))closeModal()}
-window.setAuthMode = setAuthMode;
 window.adminLogin = adminLogin;
-window.studentLogin = studentLogin;
+window.openAdminLogin = openAdminLogin;
+window.closeAdminLogin = closeAdminLogin;
+window.adminLoginOutside = adminLoginOutside;
+window.setAssignmentDone = setAssignmentDone;
 boot();
 </script>
 </body>
