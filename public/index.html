@@ -2054,6 +2054,21 @@ body {
 
 /* Public access + checklist pribadi */
 body.admin .nav button.admin-only { display: flex; }
+.top-class-actions { display:flex; align-items:center; margin-left:auto; margin-right:8px; }
+.class-select-btn { white-space:nowrap; border:1px solid #d5e1d4; background:#f3f7f1; color:#345b3c; border-radius:8px; padding:9px 12px; font-size:12px; font-weight:850; }
+.class-select-btn:hover { background:#e8f0e5; }
+.class-picker-modal .modal { width:min(560px,100%); }
+.class-picker-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-top:17px; }
+.class-choice-btn { display:flex; align-items:center; justify-content:center; min-height:66px; border:1px solid #dce6d9; border-radius:11px; background:#f6f9f4; color:#294b30; font-weight:900; font-size:16px; }
+.class-choice-btn:hover { border-color:#8cab8b; background:#eaf2e7; }
+.class-picker-note { margin-top:15px; padding:12px; border-radius:9px; background:#f5f7f3; color:#68736a; font-size:11px; line-height:1.55; }
+.class-scope-field select { width:100%; min-height:42px; border:1px solid #d9e2d9; border-radius:8px; background:#fff; color:#253128; padding:9px 11px; }
+@media (max-width:760px) {
+  .top-class-actions { margin-left:auto; margin-right:5px; }
+  .class-select-btn { padding:8px 9px; font-size:11px; }
+  .class-picker-grid { grid-template-columns:1fr 1fr; }
+}
+
 .top-admin-actions .btn { white-space: nowrap; }
 .task-check-row { margin-top: 14px; padding: 12px; background: #f5f8f4; border: 1px solid #dce7dc; border-radius: 11px; }
 .task-check-label { display: flex; align-items: flex-start; gap: 9px; cursor: pointer; color: #26372a; font-size: 12px; font-weight: 750; line-height: 1.5; }
@@ -2154,7 +2169,10 @@ body.admin .nav button.admin-only { display: flex; }
       <small id="userMeta">Akses informasi perkuliahan</small>
     </div>
   </div>
-  <div class="top-admin-actions" style="display:flex;align-items:center;gap:8px;margin-left:auto;margin-right:12px">
+  <div class="top-class-actions">
+    <button type="button" class="class-select-btn" id="activeClassBtn" onclick="openClassPicker()">Pilih Kelas</button>
+  </div>
+  <div class="top-admin-actions" style="display:flex;align-items:center;gap:8px;margin-left:0;margin-right:12px">
     <button type="button" class="btn soft" id="adminAccessBtn" onclick="openAdminLogin()">Admin</button>
     <button type="button" class="btn soft" id="adminLogoutBtn" onclick="logoutAdmin()" style="display:none">Keluar Admin</button>
   </div>
@@ -2414,7 +2432,7 @@ body.admin .nav button.admin-only { display: flex; }
   </div>
 
   <div class="note" style="margin:14px 0">
-    Checklist ini hanya untuk mencatat progres pribadi di browser/perangkat yang sedang digunakan. File tugas tetap dikumpulkan melalui website atau platform resmi dari dosen/kampus. ProMed Hub tidak mengunggah file dan tidak mengirim status checklist ke admin.
+    Checklist ini hanya untuk mencatat progres pribadi di browser/perangkat yang sedang digunakan. Pilihan kelas menentukan daftar tugas yang ditampilkan. File tugas tetap dikumpulkan melalui website atau platform resmi dari dosen/kampus. ProMed Hub tidak mengunggah file dan tidak mengirim status checklist ke admin.
   </div>
   <div class="card page-filter-card">
     <div class="toolbar page-toolbar">
@@ -2467,8 +2485,8 @@ body.admin .nav button.admin-only { display: flex; }
     </div>
     <div class="table-wrap">
       <table class="table">
-        <thead><tr><th>Nama Mata Kuliah</th><th>Semester</th><th>Dosen</th><th>Status</th><th>Aksi</th></tr></thead>
-        <tbody id="adminCoursesTable"><tr><td colspan="5" class="empty">Memuat mata kuliah...</td></tr></tbody>
+        <thead><tr><th>Nama Mata Kuliah</th><th>Kelas</th><th>Semester</th><th>Dosen</th><th>Status</th><th>Aksi</th></tr></thead>
+        <tbody id="adminCoursesTable"><tr><td colspan="6" class="empty">Memuat mata kuliah...</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -2480,8 +2498,8 @@ body.admin .nav button.admin-only { display: flex; }
     </div>
     <div class="table-wrap">
       <table class="table">
-        <thead><tr><th>Judul</th><th>Kategori</th><th>Status</th><th>Penting</th><th>Tanggal</th><th>Aksi</th></tr></thead>
-        <tbody id="adminAnnouncementsTable"><tr><td colspan="6" class="empty">Memuat pengumuman...</td></tr></tbody>
+        <thead><tr><th>Judul</th><th>Kelas</th><th>Kategori</th><th>Status</th><th>Penting</th><th>Tanggal</th><th>Aksi</th></tr></thead>
+        <tbody id="adminAnnouncementsTable"><tr><td colspan="7" class="empty">Memuat pengumuman...</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -2493,8 +2511,8 @@ body.admin .nav button.admin-only { display: flex; }
     </div>
     <div class="table-wrap">
       <table class="table">
-        <thead><tr><th>Judul Template</th><th>Mata Kuliah</th><th>File</th><th>Aksi</th></tr></thead>
-        <tbody id="adminTemplatesTable"><tr><td colspan="4" class="empty">Belum ada template.</td></tr></tbody>
+        <thead><tr><th>Judul Template</th><th>Mata Kuliah</th><th>Kelas</th><th>File</th><th>Aksi</th></tr></thead>
+        <tbody id="adminTemplatesTable"><tr><td colspan="5" class="empty">Belum ada template.</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -2503,6 +2521,21 @@ body.admin .nav button.admin-only { display: flex; }
     <section id="searchResults" class="view content"><div class="section-head"><div><h3>Hasil Pencarian</h3><p id="searchLabel">-</p></div></div><div class="card" id="searchBox"></div></section>
   
 </main>
+</div>
+
+<div id="classPickerModal" class="modalback class-picker-modal" onclick="classPickerOutside(event)">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="classPickerTitle" onclick="event.stopPropagation()">
+    <h3 id="classPickerTitle">Pilih Kelas</h3>
+    <p id="classPickerDescription">Pilih kelas agar materi, kuis, tugas, dan pengumuman yang tampil sesuai kelasmu.</p>
+    <div class="class-picker-grid">
+      <button type="button" class="class-choice-btn" onclick="chooseClass('26 A')">Kelas 26 A</button>
+      <button type="button" class="class-choice-btn" onclick="chooseClass('26 B')">Kelas 26 B</button>
+      <button type="button" class="class-choice-btn" onclick="chooseClass('25 A')">Kelas 25 A</button>
+      <button type="button" class="class-choice-btn" onclick="chooseClass('25 B')">Kelas 25 B</button>
+    </div>
+    <button type="button" id="allClassesChoice" class="btn soft block" style="display:none;margin-top:10px" onclick="chooseClass('Semua Kelas')">Lihat Semua Kelas (Admin)</button>
+    <div class="class-picker-note">Pilihan kelas disimpan di browser/perangkat ini. Mahasiswa tetap bisa mengakses website tanpa membuat akun atau login.</div>
+  </div>
 </div>
 
 <div id="adminLoginModal" class="modalback" onclick="adminLoginOutside(event)">
@@ -2532,6 +2565,56 @@ announcements:[],
 adminAnnouncements:[],
 adminCourses:[]
 };
+const PROMED_CLASSES = ['26 A', '26 B', '25 A', '25 B'];
+const ACTIVE_CLASS_KEY = 'promed_hub_active_class_v1';
+let activeClass = (() => {
+  const saved = localStorage.getItem(ACTIVE_CLASS_KEY) || '';
+  return PROMED_CLASSES.includes(saved) ? saved : '';
+})();
+function updateActiveClassButton() {
+  const button = $('activeClassBtn');
+  if (!button) return;
+  button.textContent = activeClass ? `Kelas ${activeClass}` : (S.role === 'admin' ? 'Semua Kelas' : 'Pilih Kelas');
+}
+function openClassPicker() {
+  const allButton = $('allClassesChoice');
+  if (allButton) allButton.style.display = S.role === 'admin' ? 'block' : 'none';
+  $('classPickerDescription').textContent = S.role === 'admin'
+    ? 'Pilih kelas untuk melihat konten tertentu, atau tampilkan semua kelas untuk mengelola seluruh konten.'
+    : 'Pilih kelas agar materi, kuis, tugas, template, dan pengumuman yang tampil sesuai kelasmu.';
+  $('classPickerModal').classList.add('show');
+}
+function closeClassPicker() {
+  $('classPickerModal').classList.remove('show');
+}
+function classPickerOutside(event) {
+  if (event.target === $('classPickerModal') && (activeClass || S.role === 'admin')) closeClassPicker();
+}
+async function chooseClass(value) {
+  if (value === 'Semua Kelas') {
+    if (S.role !== 'admin') return;
+    activeClass = '';
+    localStorage.removeItem(ACTIVE_CLASS_KEY);
+  } else {
+    if (!PROMED_CLASSES.includes(value)) return;
+    activeClass = value;
+    localStorage.setItem(ACTIVE_CLASS_KEY, value);
+  }
+  S.selectedCourse = null;
+  updateActiveClassButton();
+  closeClassPicker();
+  if (S.role === 'admin') await adminRefresh();
+  await loadAll();
+}
+function classQueryString() {
+  if (activeClass) return `?class=${encodeURIComponent(activeClass)}`;
+  return S.role === 'admin' ? '?class=Semua%20Kelas' : '';
+}
+function classScopeField(id, selectedValue) {
+  const selected = selectedValue || activeClass || 'Semua Kelas';
+  const values = ['Semua Kelas', ...PROMED_CLASSES];
+  return `<div class="field class-scope-field"><label for="${id}">Tampilkan untuk kelas</label><select id="${id}">${values.map(value => `<option value="${value}" ${selected === value ? 'selected' : ''}>${value === 'Semua Kelas' ? 'Semua Kelas' : `Kelas ${value}`}</option>`).join('')}</select></div>`;
+}
 const $ = id => document.getElementById(String(id).replace(/^#/, ''));
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
 async function api(path, opts = {}) {
@@ -2612,9 +2695,11 @@ async function bootApp() {
   const adminNav = document.querySelector('[data-view="admin"]');
   if (adminNav) adminNav.style.display = S.role === 'admin' ? 'flex' : 'none';
 
+  updateActiveClassButton();
   if (S.role === 'admin') await adminRefresh();
   await loadAll();
   showView('dashboard');
+  if (S.role !== 'admin' && !activeClass) openClassPicker();
 }
 
 async function logoutAdmin() {
@@ -2627,13 +2712,14 @@ async function logoutAdmin() {
 }
 
 async function loadAll() {
+  const classQuery = classQueryString();
   const [courses, materials, quizzes, assignments, templates, announcements] = await Promise.all([
-    api('/api/courses'),
-    api('/api/materials'),
-    api('/api/quizzes'),
-    api('/api/assignments'),
-    api('/api/templates'),
-    api('/api/announcements')
+    api(`/api/courses${classQuery}`),
+    api(`/api/materials${classQuery}`),
+    api(`/api/quizzes${classQuery}`),
+    api(`/api/assignments${classQuery}`),
+    api(`/api/templates${classQuery}`),
+    api(`/api/announcements${classQuery}`)
   ]);
   S.courses = courses.items || [];
   S.materials = materials.items || [];
@@ -2680,11 +2766,12 @@ function readTaskChecks() {
   }
 }
 let taskChecks = readTaskChecks();
+function taskCheckKey(id) { return `${activeClass || 'unselected'}:${String(id)}`; }
 function completedTaskCount() {
-  return S.assignments.filter(item => taskChecks[String(item.id)] === true).length;
+  return S.assignments.filter(item => taskChecks[taskCheckKey(item.id)] === true).length;
 }
 function setAssignmentDone(id, checked) {
-  const key = String(id);
+  const key = taskCheckKey(id);
   taskChecks[key] = Boolean(checked);
   try {
     localStorage.setItem(TASK_CHECKS_KEY, JSON.stringify(taskChecks));
@@ -2752,6 +2839,7 @@ function renderAdminAnnouncements() {
     ? S.adminAnnouncements.map(x => `
         <tr>
           <td><strong>${esc(x.title)}</strong></td>
+          <td>${esc(x.class_name || 'Semua Kelas')}</td>
           <td>${esc(x.category)}</td>
           <td>
             <span class="badge ${x.status === 'published' ? 'green' : 'orange'}">
@@ -2776,7 +2864,7 @@ function renderAdminAnnouncements() {
           </td>
         </tr>
       `).join('')
-    : '<tr><td colspan="6" class="empty">Belum ada pengumuman.</td></tr>';
+    : '<tr><td colspan="7" class="empty">Belum ada pengumuman.</td></tr>';
 } 
   function renderCourses() {
   const searchEl = $('courseSearch');
@@ -2885,7 +2973,7 @@ function renderMaterials(){
           <td>${esc(x.meeting || '-')}</td>
           <td>${new Date(x.uploaded_at).toLocaleDateString('id-ID')}</td>
           <td>
-            <a class="btn soft" href="/api/materials/${x.id}/file">Buka</a>
+            <a class="btn soft" href="/api/materials/${x.id}/file${activeClass ? `?class=${encodeURIComponent(activeClass)}` : ''}">Buka</a>
             ${S.role==='admin'
               ? `<button class="btn danger" onclick="del('material',${x.id})">Hapus</button>`
               : ''}
@@ -2933,7 +3021,7 @@ function renderQuizzes(){
           <p class="quiz-card-course">${esc(x.course)}${x.meeting ? ' • ' + esc(x.meeting) : ''}</p>
           <div class="quiz-card-footer">
             <span class="quiz-card-meta">Kuis tersedia untuk dikerjakan</span>
-            <a class="btn primary" href="/api/files/quiz/${x.id}" target="_blank" rel="noopener">Kerjakan Kuis</a>
+            <a class="btn primary" href="/api/files/quiz/${x.id}${activeClass ? `?class=${encodeURIComponent(activeClass)}` : ''}" target="_blank" rel="noopener">Kerjakan Kuis</a>
           </div>
           ${S.role === 'admin'
             ? `<button class="btn danger quiz-delete-btn" onclick="del('quiz',${x.id})">Hapus Kuis</button>`
@@ -2966,7 +3054,7 @@ function renderAssignments() {
 
   const total = S.assignments.length;
   const deadlineCount = S.assignments.filter(item => Boolean(item.deadline)).length;
-  const doneCount = S.assignments.filter(item => taskChecks[String(item.id)] === true).length;
+  const doneCount = S.assignments.filter(item => taskChecks[taskCheckKey(item.id)] === true).length;
   if ($('assignmentStatTotal')) $('assignmentStatTotal').textContent = total;
   if ($('assignmentStatDeadline')) $('assignmentStatDeadline').textContent = deadlineCount;
   if ($('assignmentStatCompleted')) $('assignmentStatCompleted').textContent = `${doneCount}/${total}`;
@@ -2974,7 +3062,7 @@ function renderAssignments() {
 
   $('assignmentCards').innerHTML = filtered.length
     ? filtered.map(item => {
-        const done = taskChecks[String(item.id)] === true;
+        const done = taskChecks[taskCheckKey(item.id)] === true;
         return `
           <div class="card taskcard ${done ? 'taskcard-done' : ''}">
             <div class="task-card-top">
@@ -3025,7 +3113,7 @@ function renderAssignments() {
            x.has_file
   ? `<a
        class="btn primary"
-       href="/api/templates/${x.id}/file"
+       href="/api/templates/${x.id}/file${activeClass ? `?class=${encodeURIComponent(activeClass)}` : ''}"
        target="_blank"
      >Buka Template</a>`
   : `<span class="badge orange">File belum diupload</span>`
@@ -3043,7 +3131,7 @@ function renderAdminTemplates(){
   if(!tbody) return;
 
   if(S.role !== 'admin'){
-    tbody.innerHTML = '<tr><td colspan="4" class="empty">Masuk sebagai admin untuk mengelola template.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" class="empty">Masuk sebagai admin untuk mengelola template.</td></tr>';
     return;
   }
 
@@ -3053,11 +3141,12 @@ function renderAdminTemplates(){
         return `<tr>
           <td><strong>${esc(x.title)}</strong><div class="item-meta">${esc(x.description || '')}</div></td>
           <td>${esc(course?.name || 'Mata kuliah')}</td>
+          <td>${esc(x.class_name || 'Semua Kelas')}</td>
           <td>${esc(x.file_name || '-')}</td>
           <td><button class="btn danger" onclick="deleteTemplate(${x.id})">Hapus</button></td>
         </tr>`;
       }).join('')
-    : '<tr><td colspan="4" class="empty">Belum ada template yang diunggah.</td></tr>';
+    : '<tr><td colspan="5" class="empty">Belum ada template yang diunggah.</td></tr>';
 }
 
 function renderCalendar(){$('calendarCards').innerHTML=S.assignments.length?S.assignments.slice().sort((a,b)=>(a.deadline||'9999').localeCompare(b.deadline||'9999')).map(x=>`<div class="card"><span class="badge blue">${x.deadline?esc(x.deadline):'TBA'}</span><h4 style="margin:12px 0 4px">${esc(x.title)}</h4><p style="margin:0;color:var(--muted);font-size:12px">${esc(x.course)}</p></div>`).join(''):'<div class="card empty">Belum ada agenda.</div>'}
@@ -3087,6 +3176,8 @@ function renderCalendar(){$('calendarCards').innerHTML=S.assignments.length?S.as
       <textarea id="tDescription" placeholder="Deskripsi template"></textarea>
     </div>
 
+    ${classScopeField('tClass')}
+
     <div class="field">
       <label>File Template</label>
       <input
@@ -3114,6 +3205,7 @@ async function saveTemplate(){
     fd.set('title', $('tTitle').value.trim());
     fd.set('course_id', $('tCourse').value);
     fd.set('description', $('tDescription').value.trim());
+    fd.set('class_name', $('tClass').value);
     fd.set('file', fileInput.files[0]);
 
     const result = await api('/api/admin/templates',{
@@ -3145,7 +3237,19 @@ async function deleteTemplate(id){
   }
 }
 
-function openMaterialModal(){$('modalTitle').textContent='Upload Materi';$('modalDesc').textContent='Materi akan langsung dipublikasikan untuk semua mahasiswa setelah disimpan.';$('modalBody').innerHTML=`<div class="field"><label>Judul materi</label><input id="fTitle" placeholder="Contoh: Pertemuan 4 — Media Baru"></div><div class="field"><label>Mata kuliah</label><input id="fCourse" placeholder="Komunikasi Massa"></div><div class="field"><label>Pertemuan</label><input id="fMeeting" placeholder="Pertemuan 4"></div><div class="field"><label>Sumber/link kampus (opsional)</label><input id="fSource" placeholder="https://..."></div><div class="field"><label>File PDF/PPT/DOCX</label><input id="fFile" type="file" accept=".pdf,.ppt,.pptx,.doc,.docx"></div>`;$('modalSave').onclick=saveMaterial;openModal()}
+function openMaterialModal(){
+  $('modalTitle').textContent='Upload Materi';
+  $('modalDesc').textContent='Pilih kelas tujuan. Pilih Semua Kelas jika materi berlaku untuk seluruh mahasiswa.';
+  $('modalBody').innerHTML=`
+    <div class="field"><label>Judul materi</label><input id="fTitle" placeholder="Contoh: Pertemuan 4 — Media Baru"></div>
+    <div class="field"><label>Mata kuliah</label><input id="fCourse" placeholder="Komunikasi Massa"></div>
+    <div class="field"><label>Pertemuan</label><input id="fMeeting" placeholder="Pertemuan 4"></div>
+    <div class="field"><label>Sumber/link kampus (opsional)</label><input id="fSource" placeholder="https://..."></div>
+    ${classScopeField('fClass')}
+    <div class="field"><label>File PDF/PPT/DOCX</label><input id="fFile" type="file" accept=".pdf,.ppt,.pptx,.doc,.docx"></div>`;
+  $('modalSave').onclick=saveMaterial;
+  openModal();
+}
 async function saveMaterial() {
   try {
     const fd = new FormData();
@@ -3154,6 +3258,7 @@ async function saveMaterial() {
     fd.set('course', document.getElementById('fCourse').value.trim());
     fd.set('meeting', document.getElementById('fMeeting').value.trim());
     fd.set('source_url', document.getElementById('fSource').value.trim());
+    fd.set('class_name', document.getElementById('fClass').value);
 
     const fileInput = document.getElementById('fFile');
 
@@ -3178,10 +3283,32 @@ async function saveMaterial() {
     alert(e.message || 'Upload materi gagal.');
   }
 }
-function openQuizModal(){$('modalTitle').textContent='Upload Kuis';$('modalDesc').textContent='Pilih file kuis HTML/JSON yang sudah kamu buat. Semua mahasiswa akan mendapatkan file kuis yang sama.';$('modalBody').innerHTML=`<div class="field"><label>Judul kuis</label><input id="fTitle" placeholder="Kuis Komunikasi Massa Pertemuan 1–3"></div><div class="field"><label>Mata kuliah</label><input id="fCourse" placeholder="Komunikasi Massa"></div><div class="field"><label>Pertemuan</label><input id="fMeeting" placeholder="Pertemuan 1–3"></div><div class="field"><label>File kuis HTML/JSON</label><input id="fFile" type="file" accept=".html,.htm,.json"></div>`;$('modalSave').onclick=saveQuiz;openModal()}
-async function saveQuiz(){const fd=new FormData();fd.set('title',$('fTitle').value);fd.set('course',$('fCourse').value);fd.set('meeting',$('fMeeting').value);const f=$('fFile').files[0];if(f)fd.set('file',f);try{await api('/api/admin/quizzes',{method:'POST',body:fd});closeModal();await loadAll();alert('Kuis berhasil dipublikasikan.')}catch(e){alert(e.message)}}
-function openAssignmentModal(){$('modalTitle').textContent='Buat Tugas';$('modalDesc').textContent='Instruksi tugas akan tampil untuk semua mahasiswa.';$('modalBody').innerHTML=`<div class="field"><label>Judul tugas</label><input id="fTitle" placeholder="Analisis Representasi Gender"></div><div class="field"><label>Mata kuliah</label><input id="fCourse" placeholder="Media, Gender & Representasi"></div><div class="field"><label>Deadline</label><input id="fDeadline" type="date"></div><div class="field"><label>Instruksi</label><textarea id="fInstructions" placeholder="Tuliskan instruksi tugas..."></textarea></div>`;$('modalSave').onclick=saveAssignment;openModal()}
-async function saveAssignment(){try{await api('/api/admin/assignments',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({title:$('fTitle').value,course:$('fCourse').value,deadline:$('fDeadline').value,instructions:$('fInstructions').value})});closeModal();await loadAll();alert('Tugas berhasil dibuat.')}catch(e){alert(e.message)}}
+function openQuizModal(){
+  $('modalTitle').textContent='Upload Kuis';
+  $('modalDesc').textContent='Pilih kelas tujuan untuk kuis ini.';
+  $('modalBody').innerHTML=`
+    <div class="field"><label>Judul kuis</label><input id="fTitle" placeholder="Kuis Komunikasi Massa Pertemuan 1–3"></div>
+    <div class="field"><label>Mata kuliah</label><input id="fCourse" placeholder="Komunikasi Massa"></div>
+    <div class="field"><label>Pertemuan</label><input id="fMeeting" placeholder="Pertemuan 1–3"></div>
+    ${classScopeField('fClass')}
+    <div class="field"><label>File kuis HTML/JSON</label><input id="fFile" type="file" accept=".html,.htm,.json"></div>`;
+  $('modalSave').onclick=saveQuiz;
+  openModal();
+}
+async function saveQuiz(){const fd=new FormData();fd.set('title',$('fTitle').value);fd.set('course',$('fCourse').value);fd.set('meeting',$('fMeeting').value);fd.set('class_name',$('fClass').value);const f=$('fFile').files[0];if(f)fd.set('file',f);try{await api('/api/admin/quizzes',{method:'POST',body:fd});closeModal();await loadAll();alert('Kuis berhasil dipublikasikan.')}catch(e){alert(e.message)}}
+function openAssignmentModal(){
+  $('modalTitle').textContent='Buat Tugas';
+  $('modalDesc').textContent='Tugas akan ditampilkan hanya kepada kelas yang dipilih, kecuali memilih Semua Kelas.';
+  $('modalBody').innerHTML=`
+    <div class="field"><label>Judul tugas</label><input id="fTitle" placeholder="Analisis Representasi Gender"></div>
+    <div class="field"><label>Mata kuliah</label><input id="fCourse" placeholder="Media, Gender & Representasi"></div>
+    ${classScopeField('fClass')}
+    <div class="field"><label>Deadline</label><input id="fDeadline" type="date"></div>
+    <div class="field"><label>Instruksi</label><textarea id="fInstructions" placeholder="Tuliskan instruksi tugas..."></textarea></div>`;
+  $('modalSave').onclick=saveAssignment;
+  openModal();
+}
+async function saveAssignment(){try{await api('/api/admin/assignments',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({title:$('fTitle').value,course:$('fCourse').value,deadline:$('fDeadline').value,instructions:$('fInstructions').value,class_name:$('fClass').value})});closeModal();await loadAll();alert('Tugas berhasil dibuat.')}catch(e){alert(e.message)}}
 async function del(type,id){if(!confirm('Hapus item ini?'))return;const path=type==='material'?`/api/admin/materials/${id}`:type==='quiz'?`/api/admin/quizzes/${id}`:`/api/admin/assignments/${id}`;try{await api(path,{method:'DELETE'});await loadAll()}catch(e){alert(e.message)}}
 function renderAdminCourses() {
   const tbody = $('adminCoursesTable');
@@ -3190,7 +3317,7 @@ function renderAdminCourses() {
   if (!S.adminCourses.length) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="5" class="empty">
+        <td colspan="6" class="empty">
           Belum ada mata kuliah.
         </td>
       </tr>
@@ -3207,6 +3334,7 @@ function renderAdminCourses() {
           <strong>${esc(course.name)}</strong>
           <div class="item-meta">${esc(course.description || '')}</div>
         </td>
+        <td>${esc(course.class_name || 'Semua Kelas')}</td>
         <td>Semester ${esc(course.semester)}</td>
         <td>${esc(course.lecturer || 'Belum ditambahkan')}</td>
         <td>
@@ -3278,13 +3406,15 @@ async function toggleCourseStatus(id) {
     : 'Tambah Mata Kuliah';
 
   $('modalDesc').textContent =
-    'Isi nama mata kuliah, semester, dosen, dan deskripsi.';
+    'Tentukan juga kelas yang akan menggunakan mata kuliah ini.';
 
   $('modalBody').innerHTML = `
     <div class="field">
       <label>Nama Mata Kuliah</label>
       <input id="cName" value="${esc(course?.name || '')}">
     </div>
+
+    ${classScopeField('cClass', course?.class_name || activeClass || 'Semua Kelas')}
 
     <div class="field">
       <label>Semester</label>
@@ -3321,7 +3451,8 @@ async function saveAdminCourse(id = null) {
     name: $('cName').value.trim(),
     semester: Number($('cSemester').value),
     lecturer: $('cLecturer').value.trim(),
-    description: $('cDescription').value.trim()
+    description: $('cDescription').value.trim(),
+    class_name: $('cClass').value
   };
 
   if (!data.name) {
@@ -3380,6 +3511,8 @@ function openAnnouncementModal(id = null) {
         placeholder="Tuliskan isi pengumuman...">${esc(announcement?.content || '')}</textarea>
     </div>
 
+    ${classScopeField('annClass', announcement?.class_name || activeClass || 'Semua Kelas')}
+
     <div class="field">
       <label>Kategori</label>
       <select id="annCategory">
@@ -3408,7 +3541,8 @@ async function saveAnnouncement(id = null) {
     title: $('annTitle').value.trim(),
     content: $('annContent').value.trim(),
     category: $('annCategory').value,
-    is_pinned: $('annPinned').checked ? 1 : 0
+    is_pinned: $('annPinned').checked ? 1 : 0,
+    class_name: $('annClass').value
   };
 
   if (!data.title || !data.content) {
@@ -3516,8 +3650,8 @@ async function adminRefresh() {
   try {
     const [summary, courses, announcements] = await Promise.all([
       api('/api/admin/summary'),
-      api('/api/admin/courses'),
-      api('/api/admin/announcements')
+      api(`/api/admin/courses${classQueryString()}`),
+      api(`/api/admin/announcements${classQueryString()}`)
     ]);
     $('aCourses').textContent = summary.courses || 0;
     $('aMaterials').textContent = summary.materials || 0;
