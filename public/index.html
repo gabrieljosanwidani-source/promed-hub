@@ -3344,6 +3344,68 @@ async function saveAssignment(){
   }
 }
 
+   async function del(type,id){
+  if(!confirm('Hapus item ini?'))return;
+  const path=type==='material'
+    ? `/api/admin/materials/${id}`
+    : type==='quiz'
+      ? `/api/admin/quizzes/${id}`
+      : `/api/admin/assignments/${id}`;
+
+  try {
+    await api(path,{method:'DELETE'});
+    await loadAll();
+  } catch(e) {
+    alert(e.message);
+  }
+}
+
+function renderAdminCourses() {
+  const tbody = $('adminCoursesTable');
+  if (!tbody) return;
+
+  if (!S.adminCourses.length) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="6" class="empty">
+          Belum ada mata kuliah.
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = S.adminCourses.map(course => {
+    const isActive = course.status === 'active';
+
+    return `
+      <tr>
+        <td>
+          <strong>${esc(course.name)}</strong>
+          <div class="item-meta">${esc(course.description || '')}</div>
+        </td>
+        <td>${esc(course.class_name || 'Semua Kelas')}</td>
+        <td>Semester ${esc(course.semester)}</td>
+        <td>${esc(course.lecturer || 'Belum ditambahkan')}</td>
+        <td>
+          <span class="badge ${isActive ? 'green' : 'orange'}">
+            ${isActive ? 'AKTIF' : 'NONAKTIF'}
+          </span>
+        </td>
+        <td>
+          <button class="btn soft"
+            onclick="openCourseModal(${Number(course.id)})">
+            Edit
+          </button>
+          <button class="btn ${isActive ? 'danger' : 'ok'}"
+            onclick="toggleCourseStatus(${Number(course.id)})">
+            ${isActive ? 'Nonaktifkan' : 'Aktifkan'}
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
 async function toggleCourseStatus(id) {
   const course = S.adminCourses.find(
     x => Number(x.id) === Number(id)
