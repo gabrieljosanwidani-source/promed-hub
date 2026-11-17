@@ -52,6 +52,49 @@ const GITHUB_OWNER = 'gabrieljosanwidani-source';
 const GITHUB_REPO = 'promed-files';
 const GITHUB_BRANCH = 'main';
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
+const PROMED_CLASSES = ['26 A', '26 B', '25 A', '25 B'];
+const CLASS_CONTENT_TYPES = ['course', 'material', 'quiz', 'assignment', 'template', 'announcement'];
+
+function validClassName(value) {
+  return value === 'Semua Kelas' || PROMED_CLASSES.includes(String(value || '').trim());
+}
+
+function classScopeSql(type, alias, filter) {
+  if (filter === null) return '';
+  const noMapping = `NOT EXISTS (SELECT 1 FROM pm_class_content cc WHERE cc.content_type='${type}' AND cc.content_id=${alias}.id)`;
+  if (filter === '__NO_CLASS__') return ` AND ${noMapping}`;
+  return ` AND (${noMapping} OR EXISTS (SELECT 1 FROM pm_class_content cc WHERE cc.content_type='${type}' AND cc.content_id=${alias}.id AND cc.class_name=?))`;
+}
+
+async function getClassFilter(request, env) {
+  const requested = new URL(request.url).searchParams.get('class');
+  const admin = await isAdmin(request, env);
+  if (!requested) return admin ? null : '__NO_CLASS__';
+  if (requested === 'Semua Kelas') return admin ? null : '__NO_CLASS__';
+  return PROMED_CLASSES.includes(requested) ? requested : '__INVALID__';
+}
+
+async function setContentClass(env, type, id, className) {
+  const scope = String(className || 'Semua Kelas').trim();
+  if (!CLASS_CONTENT_TYPES.includes(type) || !validClassName(scope)) {
+    throw new Error('Pilihan kelas tidak valid.');
+  }
+  await env.DB.prepare('DELETE FROM pm_class_content WHERE content_type=? AND content_id=?').bind(type, id).run();
+  if (scope !== 'Semua Kelas') {
+    await env.DB.prepare('INSERT INTO pm_class_content(content_type,content_id,class_name,created_at) VALUES(?,?,?,?)')
+      .bind(type, id, scope, now()).run();
+  }
+}
+
+async function canViewClassContent(env, request, type, id) {
+  if (await isAdmin(request, env)) return true;
+  const row = await env.DB.prepare('SELECT class_name FROM pm_class_content WHERE content_type=? AND content_id=?')
+    .bind(type, id).first();
+  if (!row) return true;
+  const requested = new URL(request.url).searchParams.get('class');
+  return PROMED_CLASSES.includes(requested) && row.class_name === requested;
+}
+
 
 function githubHeaders(env) {
   return {
@@ -296,6 +339,7 @@ function userPayload(user) {
   return {id:user.id,npm:user.npm,name:user.name};
 }
 async function openMaterialFile(request, env, id) {
+  if (!(await canViewClassContent(env, request, 'material', id))) return new Response('Materi ini tidak tersedia untuk kelas yang dipilih.', { status: 404 });
   const row = await env.DB
     .prepare(`
       SELECT file_key, file_name, content_type
@@ -329,6 +373,7 @@ async function openMaterialFile(request, env, id) {
   });
 }
 async function openTemplateFile(request, env, id) {
+  if (!(await canViewClassContent(env, request, 'template', id))) return new Response('Template ini tidak tersedia untuk kelas yang dipilih.', { status: 404 });
   const row = await env.DB
     .prepare(`
       SELECT file_key, file_name, content_type
@@ -358,41 +403,57 @@ async function openTemplateFile(request, env, id) {
   });
 }
 async function listMaterials(env, request) {
-  const q = await env.DB.prepare(`SELECT id,title,course,course_id,meeting,source_url,file_name,content_type,uploaded_at,status
-FROM pm_materials WHERE status='published' ORDER BY uploaded_at DESC`).all();
-  return json({items:q.results || []});
+  const filter = await getClassFilter(request, env);
+  if (filter === '__INVALID__') return json({ message: 'Kelas tidak valid.' }, 400);
+  const sql = `SELECT m.id,m.title,m.course,m.course_id,m.meeting,m.source_url,m.file_name,m.content_type,m.uploaded_at,m.status,
+    COALESCE((SELECT cc.class_name FROM pm_class_content cc WHERE cc.content_type='material' AND cc.content_id=m.id LIMIT 1),'Semua Kelas') AS class_name
+    FROM pm_materials m WHERE m.status='published' ${classScopeSql('material','m',filter)} ORDER BY m.uploaded_at DESC`;
+  const stmt = env.DB.prepare(sql);
+  const q = filter && filter !== '__NO_CLASS__' ? await stmt.bind(filter).all() : await stmt.all();
+  return json({ items: q.results || [] });
 }
 async function listQuizzes(env, request) {
-  const q = await env.DB.prepare(`SELECT id,title,course,course_id,meeting,file_name,content_type,uploaded_at,status FROM pm_quizzes WHERE status='published' ORDER BY uploaded_at DESC`).all();
-  return json({items:q.results || []});
+  const filter = await getClassFilter(request, env);
+  if (filter === '__INVALID__') return json({ message: 'Kelas tidak valid.' }, 400);
+  const sql = `SELECT q.id,q.title,q.course,q.course_id,q.meeting,q.file_name,q.content_type,q.uploaded_at,q.status,
+    COALESCE((SELECT cc.class_name FROM pm_class_content cc WHERE cc.content_type='quiz' AND cc.content_id=q.id LIMIT 1),'Semua Kelas') AS class_name
+    FROM pm_quizzes q WHERE q.status='published' ${classScopeSql('quiz','q',filter)} ORDER BY q.uploaded_at DESC`;
+  const stmt = env.DB.prepare(sql);
+  const q = filter && filter !== '__NO_CLASS__' ? await stmt.bind(filter).all() : await stmt.all();
+  return json({ items: q.results || [] });
 }
 async function listAssignments(env, request) {
-  const q = await env.DB.prepare(`SELECT id,title,course,course_id,instructions,deadline,created_at,status FROM pm_assignments WHERE status='active' ORDER BY CASE WHEN deadline IS NULL OR deadline='' THEN 1 ELSE 0 END, deadline`).all();
-  return json({items:q.results || []});
+  const filter = await getClassFilter(request, env);
+  if (filter === '__INVALID__') return json({ message: 'Kelas tidak valid.' }, 400);
+  const sql = `SELECT a.id,a.title,a.course,a.course_id,a.instructions,a.deadline,a.created_at,a.status,
+    COALESCE((SELECT cc.class_name FROM pm_class_content cc WHERE cc.content_type='assignment' AND cc.content_id=a.id LIMIT 1),'Semua Kelas') AS class_name
+    FROM pm_assignments a WHERE a.status='active' ${classScopeSql('assignment','a',filter)}
+    ORDER BY CASE WHEN a.deadline IS NULL OR a.deadline='' THEN 1 ELSE 0 END, a.deadline`;
+  const stmt = env.DB.prepare(sql);
+  const q = filter && filter !== '__NO_CLASS__' ? await stmt.bind(filter).all() : await stmt.all();
+  return json({ items: q.results || [] });
 }
 async function listTemplates(env, request) {
-  const q = await env.DB.prepare(`
-    SELECT id,course_id,title,description,
-           CASE WHEN file_key IS NOT NULL AND file_key <> '' THEN 1 ELSE 0 END AS has_file,
-           file_name, content_type, uploaded_at, status
-    FROM pm_templates
-    WHERE status='published'
-    ORDER BY uploaded_at DESC
-  `).all();
-
-  return json({items:q.results || []});
+  const filter = await getClassFilter(request, env);
+  if (filter === '__INVALID__') return json({ message: 'Kelas tidak valid.' }, 400);
+  const sql = `SELECT t.id,t.course_id,t.title,t.description,
+           CASE WHEN t.file_key IS NOT NULL AND t.file_key <> '' THEN 1 ELSE 0 END AS has_file,
+           t.file_name,t.content_type,t.uploaded_at,t.status,
+           COALESCE((SELECT cc.class_name FROM pm_class_content cc WHERE cc.content_type='template' AND cc.content_id=t.id LIMIT 1),'Semua Kelas') AS class_name
+    FROM pm_templates t WHERE t.status='published' ${classScopeSql('template','t',filter)} ORDER BY t.uploaded_at DESC`;
+  const stmt = env.DB.prepare(sql);
+  const q = filter && filter !== '__NO_CLASS__' ? await stmt.bind(filter).all() : await stmt.all();
+  return json({ items: q.results || [] });
 }
 async function listCourses(env, request) {
-  const q = await env.DB.prepare(`
-    SELECT id, name, semester, lecturer, description, status
-    FROM pm_courses
-    WHERE status = 'active'
-    ORDER BY semester ASC, name ASC
-  `).all();
-
-  return json({
-    items: q.results || []
-  });
+  const filter = await getClassFilter(request, env);
+  if (filter === '__INVALID__') return json({ message: 'Kelas tidak valid.' }, 400);
+  const sql = `SELECT c.id,c.name,c.semester,c.lecturer,c.description,c.status,
+    COALESCE((SELECT cc.class_name FROM pm_class_content cc WHERE cc.content_type='course' AND cc.content_id=c.id LIMIT 1),'Semua Kelas') AS class_name
+    FROM pm_courses c WHERE c.status='active' ${classScopeSql('course','c',filter)} ORDER BY c.semester ASC,c.name ASC`;
+  const stmt = env.DB.prepare(sql);
+  const q = filter && filter !== '__NO_CLASS__' ? await stmt.bind(filter).all() : await stmt.all();
+  return json({ items: q.results || [] });
 }
 async function adminCreateMaterial(request, env) {
   if (!(await isAdmin(request, env))) {
@@ -410,6 +471,8 @@ async function adminCreateMaterial(request, env) {
   const course = String(form.get('course') || '').trim();
   const meeting = String(form.get('meeting') || '').trim();
   const sourceUrl = String(form.get('source_url') || '').trim();
+  const className = String(form.get('class_name') || 'Semua Kelas').trim();
+  if (!validClassName(className)) return json({ message: 'Kelas yang dipilih tidak valid.' }, 400);
 
   if (!title || !course) {
     return json({
@@ -452,8 +515,10 @@ async function adminCreateMaterial(request, env) {
     )
     .run();
 
+  await setContentClass(env, 'material', result.meta.last_row_id, className);
+
   return json({
-    message: 'Materi berhasil dipublikasikan untuk seluruh mahasiswa.',
+    message: className === 'Semua Kelas' ? 'Materi berhasil dipublikasikan untuk semua kelas.' : `Materi berhasil dipublikasikan untuk kelas ${className}.`,
     id: result.meta.last_row_id,
     file_key: key
   });
@@ -476,6 +541,8 @@ async function adminCreateQuiz(request, env) {
   const title = String(form.get('title') || '').trim();
   const course = String(form.get('course') || '').trim();
   const meeting = String(form.get('meeting') || '').trim();
+  const className = String(form.get('class_name') || 'Semua Kelas').trim();
+  if (!validClassName(className)) return json({ message: 'Kelas yang dipilih tidak valid.' }, 400);
 
   if (!title || !course) {
     return json({
@@ -517,8 +584,10 @@ async function adminCreateQuiz(request, env) {
     )
     .run();
 
+  await setContentClass(env, 'quiz', result.meta.last_row_id, className);
+
   return json({
-    message: 'Kuis berhasil dipublikasikan untuk seluruh mahasiswa.',
+    message: className === 'Semua Kelas' ? 'Kuis berhasil dipublikasikan untuk semua kelas.' : `Kuis berhasil dipublikasikan untuk kelas ${className}.`,
     id: result.meta.last_row_id,
     file_key: key
   });
@@ -539,6 +608,8 @@ async function adminCreateTemplate(request, env) {
   const title = String(form.get('title') || '').trim();
   const courseId = Number(form.get('course_id'));
   const description = String(form.get('description') || '').trim();
+  const className = String(form.get('class_name') || 'Semua Kelas').trim();
+  if (!validClassName(className)) return json({ message: 'Kelas yang dipilih tidak valid.' }, 400);
 
   if (!title || !Number.isInteger(courseId) || courseId <= 0) {
     return json({
@@ -589,20 +660,29 @@ async function adminCreateTemplate(request, env) {
     )
     .run();
 
+  await setContentClass(env, 'template', result.meta.last_row_id, className);
+
   return json({
-    message: 'Template berhasil dipublikasikan.',
+    message: className === 'Semua Kelas' ? 'Template berhasil dipublikasikan untuk semua kelas.' : `Template berhasil dipublikasikan untuk kelas ${className}.`,
     id: result.meta.last_row_id,
     file_key: key
   });
 }
 
 async function adminCreateAssignment(request, env) {
-  if(!(await isAdmin(request,env)))return json({message:'Belum login admin.'},401);
-  const data=await request.json().catch(()=>({}));
-  const title=String(data.title||'').trim(),course=String(data.course||'').trim(),instructions=String(data.instructions||'').trim(),deadline=String(data.deadline||'').trim();
-  if(!title||!course)return json({message:'Judul dan mata kuliah wajib diisi.'},400);
-  const r=await env.DB.prepare(`INSERT INTO pm_assignments(title,course,instructions,deadline,created_at,status) VALUES(?,?,?,?,?,?)`).bind(title,course,instructions,deadline,now(),'active').run();
-  return json({message:'Tugas dibuat untuk seluruh mahasiswa.',id:r.meta.last_row_id});
+  if (!(await isAdmin(request, env))) return json({ message: 'Belum login admin.' }, 401);
+  const data = await request.json().catch(() => ({}));
+  const title = String(data.title || '').trim();
+  const course = String(data.course || '').trim();
+  const instructions = String(data.instructions || '').trim();
+  const deadline = String(data.deadline || '').trim();
+  const className = String(data.class_name || 'Semua Kelas').trim();
+  if (!title || !course) return json({ message: 'Judul dan mata kuliah wajib diisi.' }, 400);
+  if (!validClassName(className)) return json({ message: 'Kelas yang dipilih tidak valid.' }, 400);
+  const result = await env.DB.prepare(`INSERT INTO pm_assignments(title,course,instructions,deadline,created_at,status) VALUES(?,?,?,?,?,?)`)
+    .bind(title, course, instructions, deadline, now(), 'active').run();
+  await setContentClass(env, 'assignment', result.meta.last_row_id, className);
+  return json({ message: className === 'Semua Kelas' ? 'Tugas dibuat untuk semua kelas.' : `Tugas dibuat untuk kelas ${className}.`, id: result.meta.last_row_id });
 }
 
 async function adminDeleteMaterial(request, env, id) {
@@ -621,10 +701,8 @@ async function adminDeleteMaterial(request, env, id) {
 
   await githubDelete(env, row.file_key);
 
-  await env.DB
-    .prepare('DELETE FROM pm_materials WHERE id=?')
-    .bind(id)
-    .run();
+  await env.DB.prepare('DELETE FROM pm_materials WHERE id=?').bind(id).run();
+  await env.DB.prepare("DELETE FROM pm_class_content WHERE content_type='material' AND content_id=?").bind(id).run();
 
   return json({ message: 'Materi dihapus.' });
 }
@@ -644,10 +722,8 @@ async function adminDeleteQuiz(request, env, id) {
 
   await githubDelete(env, row.file_key);
 
-  await env.DB
-    .prepare('DELETE FROM pm_quizzes WHERE id=?')
-    .bind(id)
-    .run();
+  await env.DB.prepare('DELETE FROM pm_quizzes WHERE id=?').bind(id).run();
+  await env.DB.prepare("DELETE FROM pm_class_content WHERE content_type='quiz' AND content_id=?").bind(id).run();
 
   return json({ message: 'Kuis dihapus.' });
 }
@@ -698,12 +774,15 @@ async function adminDeleteTemplate(request, env, id) {
     }, 500);
   }
 
+  await env.DB.prepare("DELETE FROM pm_class_content WHERE content_type='template' AND content_id=?").bind(id).run();
   return json({ message: 'Template berhasil dihapus.' });
 }
 
 async function adminDeleteAssignment(request, env, id) {
   if(!(await isAdmin(request,env)))return json({message:'Belum login admin.'},401);
-  await env.DB.prepare('DELETE FROM pm_assignments WHERE id=?').bind(id).run();return json({message:'Tugas dihapus.'});
+  await env.DB.prepare('DELETE FROM pm_assignments WHERE id=?').bind(id).run();
+  await env.DB.prepare("DELETE FROM pm_class_content WHERE content_type='assignment' AND content_id=?").bind(id).run();
+  return json({message:'Tugas dihapus.'});
 }
 
 async function addStudent(request, env) {
@@ -717,140 +796,104 @@ async function addStudent(request, env) {
   }catch{return json({message:'NPM sudah terdaftar.'},409)}
 }
 async function listAdminCourses(env, request) {
-  if (!(await isAdmin(request, env))) {
-    return json({ message: 'Belum login admin.' }, 401);
-  }
-
-  const q = await env.DB.prepare(`
-    SELECT id, name, semester, lecturer, description, status
-    FROM pm_courses
-    ORDER BY semester ASC, name ASC
-  `).all();
-
+  if (!(await isAdmin(request, env))) return json({ message: 'Belum login admin.' }, 401);
+  const filter = await getClassFilter(request, env);
+  if (filter === '__INVALID__') return json({ message: 'Kelas tidak valid.' }, 400);
+  const sql = `SELECT c.id,c.name,c.semester,c.lecturer,c.description,c.status,
+    COALESCE((SELECT cc.class_name FROM pm_class_content cc WHERE cc.content_type='course' AND cc.content_id=c.id LIMIT 1),'Semua Kelas') AS class_name
+    FROM pm_courses c ${filter === null ? '' : `WHERE ${classScopeSql('course','c',filter).replace(/^ AND /,'')}`} ORDER BY c.semester ASC,c.name ASC`;
+  const stmt = env.DB.prepare(sql);
+  const q = filter && filter !== '__NO_CLASS__' ? await stmt.bind(filter).all() : await stmt.all();
   return json({ items: q.results || [] });
 }
 
 async function adminCreateCourse(request, env) {
-  if (!(await isAdmin(request, env))) {
-    return json({ message: 'Belum login admin.' }, 401);
-  }
-
+  if (!(await isAdmin(request, env))) return json({ message: 'Belum login admin.' }, 401);
   const data = await request.json().catch(() => ({}));
-
   const name = String(data.name || '').trim();
   const semester = Number(data.semester);
   const lecturer = String(data.lecturer || '').trim();
   const description = String(data.description || '').trim();
+  const className = String(data.class_name || 'Semua Kelas').trim();
 
   if (!name || !Number.isInteger(semester) || semester < 1 || semester > 8) {
-    return json({
-      message: 'Nama mata kuliah dan semester 1–8 wajib diisi.'
-    }, 400);
+    return json({ message: 'Nama mata kuliah dan semester 1–8 wajib diisi.' }, 400);
   }
+  if (!validClassName(className)) return json({ message: 'Kelas yang dipilih tidak valid.' }, 400);
 
-  const duplicate = await env.DB.prepare(`
-    SELECT id FROM pm_courses
-    WHERE lower(name) = lower(?) AND semester = ?
-  `).bind(name, semester).first();
-
-  if (duplicate) {
-    return json({
-      message: 'Mata kuliah tersebut sudah terdaftar pada semester ini.'
-    }, 409);
-  }
+  const duplicateSql = `SELECT c.id FROM pm_courses c
+    WHERE lower(c.name)=lower(?) AND c.semester=?
+    AND (NOT EXISTS (SELECT 1 FROM pm_class_content cc WHERE cc.content_type='course' AND cc.content_id=c.id)
+      OR EXISTS (SELECT 1 FROM pm_class_content cc WHERE cc.content_type='course' AND cc.content_id=c.id AND cc.class_name=?)
+      OR ?='Semua Kelas')`;
+  const duplicate = await env.DB.prepare(duplicateSql).bind(name, semester, className, className).first();
+  if (duplicate) return json({ message: 'Mata kuliah tersebut sudah terdaftar untuk kelas ini pada semester yang sama.' }, 409);
 
   const result = await env.DB.prepare(`
-    INSERT INTO pm_courses
-      (name, semester, lecturer, description, status, created_at)
+    INSERT INTO pm_courses (name, semester, lecturer, description, status, created_at)
     VALUES (?, ?, ?, ?, 'active', ?)
-  `).bind(
-    name,
-    semester,
-    lecturer,
-    description,
-    now()
-  ).run();
+  `).bind(name, semester, lecturer, description, now()).run();
+  await setContentClass(env, 'course', result.meta.last_row_id, className);
 
   return json({
     ok: true,
-    message: 'Mata kuliah berhasil ditambahkan.',
+    message: className === 'Semua Kelas' ? 'Mata kuliah berhasil ditambahkan untuk semua kelas.' : `Mata kuliah berhasil ditambahkan untuk kelas ${className}.`,
     id: result.meta.last_row_id
   });
 }
+
 async function adminUpdateCourse(request, env, id) {
-  if (!(await isAdmin(request, env))) {
-    return json({ message: 'Belum login admin.' }, 401);
-  }
-
+  if (!(await isAdmin(request, env))) return json({ message: 'Belum login admin.' }, 401);
   const data = await request.json().catch(() => ({}));
-
   const name = String(data.name || '').trim();
   const semester = Number(data.semester);
   const lecturer = String(data.lecturer || '').trim();
   const description = String(data.description || '').trim();
+  const className = String(data.class_name || 'Semua Kelas').trim();
 
   if (!name || !Number.isInteger(semester) || semester < 1 || semester > 8) {
-    return json({
-      message: 'Nama mata kuliah dan semester 1–8 wajib diisi.'
-    }, 400);
+    return json({ message: 'Nama mata kuliah dan semester 1–8 wajib diisi.' }, 400);
   }
+  if (!validClassName(className)) return json({ message: 'Kelas yang dipilih tidak valid.' }, 400);
 
-  const course = await env.DB.prepare(
-    'SELECT id FROM pm_courses WHERE id = ?'
-  ).bind(id).first();
+  const course = await env.DB.prepare('SELECT id FROM pm_courses WHERE id=?').bind(id).first();
+  if (!course) return json({ message: 'Mata kuliah tidak ditemukan.' }, 404);
 
-  if (!course) {
-    return json({ message: 'Mata kuliah tidak ditemukan.' }, 404);
-  }
-
-  const duplicate = await env.DB.prepare(`
-    SELECT id FROM pm_courses
-    WHERE lower(name) = lower(?)
-      AND semester = ?
-      AND id != ?
-  `).bind(name, semester, id).first();
-
-  if (duplicate) {
-    return json({
-      message: 'Nama mata kuliah sudah digunakan pada semester tersebut.'
-    }, 409);
-  }
+  const duplicateSql = `SELECT c.id FROM pm_courses c
+    WHERE lower(c.name)=lower(?) AND c.semester=? AND c.id!=?
+    AND (NOT EXISTS (SELECT 1 FROM pm_class_content cc WHERE cc.content_type='course' AND cc.content_id=c.id)
+      OR EXISTS (SELECT 1 FROM pm_class_content cc WHERE cc.content_type='course' AND cc.content_id=c.id AND cc.class_name=?)
+      OR ?='Semua Kelas')`;
+  const duplicate = await env.DB.prepare(duplicateSql).bind(name, semester, id, className, className).first();
+  if (duplicate) return json({ message: 'Nama mata kuliah sudah digunakan pada kelas dan semester tersebut.' }, 409);
 
   await env.DB.prepare(`
-    UPDATE pm_courses
-    SET name = ?, semester = ?, lecturer = ?, description = ?
-    WHERE id = ?
+    UPDATE pm_courses SET name=?,semester=?,lecturer=?,description=? WHERE id=?
   `).bind(name, semester, lecturer, description, id).run();
+  await setContentClass(env, 'course', id, className);
 
-  return json({
-    ok: true,
-    message: 'Mata kuliah berhasil diperbarui.'
-  });
+  return json({ ok: true, message: 'Mata kuliah berhasil diperbarui.' });
 }
 async function listAnnouncements(env, request) {
-  const q = await env.DB.prepare(`
-    SELECT id, title, content, category, is_pinned,
-           status, created_at, updated_at
-    FROM pm_announcements
-    WHERE status = 'published'
-    ORDER BY is_pinned DESC, created_at DESC
-  `).all();
-
+  const filter = await getClassFilter(request, env);
+  if (filter === '__INVALID__') return json({ message: 'Kelas tidak valid.' }, 400);
+  const sql = `SELECT a.id,a.title,a.content,a.category,a.is_pinned,a.status,a.created_at,a.updated_at
+    FROM pm_announcements a WHERE a.status='published' ${classScopeSql('announcement','a',filter)}
+    ORDER BY a.is_pinned DESC,a.created_at DESC`;
+  const stmt = env.DB.prepare(sql);
+  const q = filter && filter !== '__NO_CLASS__' ? await stmt.bind(filter).all() : await stmt.all();
   return json({ items: q.results || [] });
 }
 
 async function adminListAnnouncements(env, request) {
-  if (!(await isAdmin(request, env))) {
-    return json({ message: 'Belum login admin.' }, 401);
-  }
-
-  const q = await env.DB.prepare(`
-    SELECT id, title, content, category, is_pinned,
-           status, created_at, updated_at
-    FROM pm_announcements
-    ORDER BY created_at DESC
-  `).all();
-
+  if (!(await isAdmin(request, env))) return json({ message: 'Belum login admin.' }, 401);
+  const filter = await getClassFilter(request, env);
+  if (filter === '__INVALID__') return json({ message: 'Kelas tidak valid.' }, 400);
+  const sql = `SELECT a.id,a.title,a.content,a.category,a.is_pinned,a.status,a.created_at,a.updated_at,
+    COALESCE((SELECT cc.class_name FROM pm_class_content cc WHERE cc.content_type='announcement' AND cc.content_id=a.id LIMIT 1),'Semua Kelas') AS class_name
+    FROM pm_announcements a ${filter === null ? '' : `WHERE ${classScopeSql('announcement','a',filter).replace(/^ AND /,'')}`} ORDER BY a.created_at DESC`;
+  const stmt = env.DB.prepare(sql);
+  const q = filter && filter !== '__NO_CLASS__' ? await stmt.bind(filter).all() : await stmt.all();
   return json({ items: q.results || [] });
 }
 
@@ -864,6 +907,8 @@ async function adminCreateAnnouncement(request, env) {
   const content = String(data.content || '').trim();
   const category = String(data.category || 'informasi').trim();
   const isPinned = data.is_pinned ? 1 : 0;
+  const className = String(data.class_name || 'Semua Kelas').trim();
+  if (!validClassName(className)) return json({ message: 'Kelas yang dipilih tidak valid.' }, 400);
 
   const allowedCategories = [
     'akademik',
@@ -905,9 +950,11 @@ async function adminCreateAnnouncement(request, env) {
     timestamp
   ).run();
 
+  await setContentClass(env, 'announcement', result.meta.last_row_id, className);
+
   return json({
     ok: true,
-    message: 'Pengumuman berhasil dipublikasikan.',
+    message: className === 'Semua Kelas' ? 'Pengumuman berhasil dipublikasikan untuk semua kelas.' : `Pengumuman berhasil dipublikasikan untuk kelas ${className}.`,
     id: result.meta.last_row_id
   });
 }
@@ -922,6 +969,8 @@ async function adminUpdateAnnouncement(request, env, id) {
   const content = String(data.content || '').trim();
   const category = String(data.category || 'informasi').trim();
   const isPinned = data.is_pinned ? 1 : 0;
+  const className = String(data.class_name || 'Semua Kelas').trim();
+  if (!validClassName(className)) return json({ message: 'Kelas yang dipilih tidak valid.' }, 400);
 
   const allowedCategories = [
     'akademik',
@@ -969,6 +1018,8 @@ async function adminUpdateAnnouncement(request, env, id) {
     now(),
     id
   ).run();
+
+  await setContentClass(env, 'announcement', id, className);
 
   return json({
     ok: true,
@@ -1022,6 +1073,8 @@ async function adminDeleteAnnouncement(request, env, id) {
   if (!result.meta.changes) {
     return json({ message: 'Pengumuman tidak ditemukan.' }, 404);
   }
+
+  await env.DB.prepare("DELETE FROM pm_class_content WHERE content_type='announcement' AND content_id=?").bind(id).run();
 
   return json({
     ok: true,
@@ -1110,6 +1163,8 @@ async function serveFile(env, request, type, id) {
     return new Response('Pengumpulan file melalui ProMed Hub sudah dinonaktifkan. Gunakan platform resmi kampus.', { status: 410 });
   }
 
+  if (type === 'material' && !(await canViewClassContent(env, request, 'material', id))) return new Response('Materi ini tidak tersedia untuk kelas yang dipilih.', { status: 404 });
+  if (type === 'quiz' && !(await canViewClassContent(env, request, 'quiz', id))) return new Response('Kuis ini tidak tersedia untuk kelas yang dipilih.', { status: 404 });
   let row;
   if (type === 'material') {
     row = await env.DB.prepare("SELECT file_key,file_name,content_type,status FROM pm_materials WHERE id=? AND status='published'").bind(id).first();
@@ -1163,6 +1218,7 @@ export default {
   return openMaterialFile(request, env, id);
 }
       if(p==='/api/health')return json({ok:true,service:'ProMed Hub'});
+      if(request.method==='GET'&&p==='/api/classes')return json({items:PROMED_CLASSES.map(name=>({name,label:`Kelas ${name}`}))});
       if(request.method==='POST'&&p==='/api/login')return json({message:'Login mahasiswa sudah dinonaktifkan. Website dapat diakses langsung.'},410);
       if(request.method==='POST'&&p==='/api/admin/login')return loginAdmin(request,env);
       if(request.method==='POST'&&p==='/api/logout')return json({message:'Login mahasiswa sudah tidak digunakan.'},410);
