@@ -1484,16 +1484,6 @@ if (
     Number(p.split('/')[3])
   );
 } 
-      if (
-  request.method === 'GET' &&
-  /^\/api\/assignments\/\d+\/file$/.test(p)
-) {
-  return openAssignmentFile(
-    request,
-    env,
-    Number(p.split('/')[3])
-  );
-}
       return env.ASSETS.fetch(request);
     } catch (err) {
       console.error(err);
