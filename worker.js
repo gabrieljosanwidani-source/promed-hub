@@ -1336,7 +1336,7 @@ export default {
 
   return openMaterialFile(request, env, id);
 }
-      if(p==='/api/health')return json({ok:true,service:'ProMed Hub'});
+      if(p==='/api/health')return json({ok:true,service:'ProMed Hub Staging'});
       if(request.method==='GET'&&p==='/api/classes')return json({items:PROMED_CLASSES.map(name=>({name,label:`Kelas ${name}`}))});
       if(request.method==='POST'&&p==='/api/login')return json({message:'Login mahasiswa sudah dinonaktifkan. Website dapat diakses langsung.'},410);
       if(request.method==='POST'&&p==='/api/admin/login')return loginAdmin(request,env);
