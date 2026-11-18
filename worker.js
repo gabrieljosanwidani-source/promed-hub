@@ -48,6 +48,30 @@ async function randomToken(bytes = 32) {
   crypto.getRandomValues(a);
   return [...a].map(x => x.toString(16).padStart(2, '0')).join('');
 }
+  async function passwordHash(value, salt, iterations = 310000) {
+  const key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(String(value)),
+    'PBKDF2',
+    false,
+    ['deriveBits']
+  );
+
+  const bits = await crypto.subtle.deriveBits(
+    {
+      name: 'PBKDF2',
+      salt: new TextEncoder().encode(String(salt)),
+      iterations,
+      hash: 'SHA-256'
+    },
+    key,
+    256
+  );
+
+  return [...new Uint8Array(bits)]
+    .map(x => x.toString(16).padStart(2, '0'))
+    .join('');
+}
 const GITHUB_OWNER = 'gabrieljosanwidani-source';
 const GITHUB_REPO = 'promed-files-staging';
 const GITHUB_BRANCH = 'main';
