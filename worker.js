@@ -49,7 +49,7 @@ async function randomToken(bytes = 32) {
   return [...a].map(x => x.toString(16).padStart(2, '0')).join('');
 }
 const GITHUB_OWNER = 'gabrieljosanwidani-source';
-const GITHUB_REPO = 'promed-files';
+const GITHUB_REPO = 'promed-files-staging';
 const GITHUB_BRANCH = 'main';
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const PROMED_CLASSES = ['26 A', '26 B', '25 A', '25 B'];
