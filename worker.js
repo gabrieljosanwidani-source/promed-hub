@@ -1609,21 +1609,29 @@ async function authorizeAdminRequest(request, env, path) {
     return json({ message: 'Belum login admin.' }, 401);
   }
 
-  if (account.role === 'super_admin') return null;
-  if (account.role !== 'class_admin' || !PROMED_CLASSES.includes(account.class_name)) {
-    return json({ message: 'Peran atau kelas akun admin tidak valid.' }, 403);
+    const method = request.method.toUpperCase();
+
+  if (
+    Number(account.must_change_password || 0) === 1 &&
+    !(method === 'POST' && path === '/api/admin/change-password')
+  ) {
+    return json({
+      message: 'Silakan ganti password awal terlebih dahulu.'
+    }, 403);
   }
 
-  const method = request.method.toUpperCase();
-  const assignedClass = account.class_name;
+  if (account.role === 'super_admin') return null;
+
   if (
-  Number(account.must_change_password || 0) === 1 &&
-  !(method === 'POST' && path === '/api/admin/change-password')
-) {
-  return json({
-    message: 'Silakan ganti password awal terlebih dahulu.'
-  }, 403);
-}
+    account.role !== 'class_admin' ||
+    !PROMED_CLASSES.includes(account.class_name)
+  ) {
+    return json({
+      message: 'Peran atau kelas akun admin tidak valid.'
+    }, 403);
+  }
+
+  const assignedClass = account.class_name;
 
   // Admin Kelas hanya dapat membuka daftar konten kelasnya sendiri.
   if (method === 'GET' && [
