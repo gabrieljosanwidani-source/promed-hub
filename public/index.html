@@ -2542,11 +2542,87 @@ body.admin .nav button.admin-only { display: flex; }
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="adminLoginTitle" onclick="event.stopPropagation()">
     <h3 id="adminLoginTitle">Masuk sebagai Admin</h3>
     <p>Login ini hanya untuk mengelola konten ProMed Hub. Mahasiswa tidak perlu login.</p>
-    <form id="adminLoginForm" onsubmit="adminLogin(event)">
-      <div class="field"><label for="adminKey">Admin Key</label><input id="adminKey" type="password" autocomplete="current-password" placeholder="Masukkan admin key" required></div>
-      <div id="adminLoginMessage" aria-live="polite"></div>
-      <div class="modal-actions"><button type="button" class="btn soft" onclick="closeAdminLogin()">Batal</button><button type="submit" class="btn primary">Masuk Admin</button></div>
-    </form>
+   <div id="adminSetupPanel" style="display:none">
+  <h4>Aktivasi Super Admin</h4>
+  <p>Buat akun Super Admin pertama untuk mengelola ProMed Hub.</p>
+
+  <form id="adminSetupForm" onsubmit="adminBootstrap(event)">
+    <div class="field">
+      <label for="adminBootstrapKey">Kunci Bootstrap</label>
+      <input id="adminBootstrapKey" type="password" required>
+    </div>
+
+    <div class="field">
+      <label for="adminDisplayName">Nama Tampilan</label>
+      <input id="adminDisplayName" type="text" required>
+    </div>
+
+    <div class="field">
+      <label for="adminSetupUsername">Username</label>
+      <input id="adminSetupUsername" type="text" required>
+    </div>
+
+    <div class="field">
+      <label for="adminSetupPassword">Password</label>
+      <input id="adminSetupPassword" type="password" minlength="12" required>
+    </div>
+
+    <div id="adminSetupMessage" aria-live="polite"></div>
+
+    <div class="modal-actions">
+      <button type="button" class="btn soft" onclick="closeAdminLogin()">Batal</button>
+      <button type="submit" class="btn primary">Buat Super Admin</button>
+    </div>
+  </form>
+</div>
+
+<div id="adminLoginPanel">
+  <form id="adminLoginForm" onsubmit="adminLogin(event)">
+    <div class="field">
+      <label for="adminUsername">Username</label>
+      <input id="adminUsername" type="text" autocomplete="username" required>
+    </div>
+
+    <div class="field">
+      <label for="adminPassword">Password</label>
+      <input id="adminPassword" type="password" autocomplete="current-password" required>
+    </div>
+
+    <div id="adminLoginMessage" aria-live="polite"></div>
+
+    <div class="modal-actions">
+      <button type="button" class="btn soft" onclick="closeAdminLogin()">Batal</button>
+      <button type="submit" class="btn primary">Masuk Admin</button>
+    </div>
+  </form>
+</div>
+     <div id="adminChangePasswordPanel" style="display:none">
+  <h4>Ganti Password Awal</h4>
+  <p>Untuk keamanan akun, silakan buat password baru sebelum melanjutkan.</p>
+
+  <form id="adminChangePasswordForm" onsubmit="adminChangePassword(event)">
+    <div class="field">
+      <label for="adminCurrentPassword">Password Saat Ini</label>
+      <input id="adminCurrentPassword" type="password" required>
+    </div>
+
+    <div class="field">
+      <label for="adminNewPassword">Password Baru</label>
+      <input id="adminNewPassword" type="password" minlength="12" required>
+    </div>
+
+    <div class="field">
+      <label for="adminConfirmPassword">Konfirmasi Password Baru</label>
+      <input id="adminConfirmPassword" type="password" minlength="12" required>
+    </div>
+
+    <div id="adminChangePasswordMessage" aria-live="polite"></div>
+
+    <div class="modal-actions">
+      <button type="submit" class="btn primary">Simpan Password Baru</button>
+    </div>
+  </form>
+</div>
   </div>
 </div>
 <div id="modalBack" class="modalback" onclick="modalOutside(event)"><div class="modal" onclick="event.stopPropagation()"><h3 id="modalTitle">-</h3><p id="modalDesc">-</p><div id="modalBody"></div><div class="modal-actions"><button class="btn soft" onclick="closeModal()">Batal</button><button id="modalSave" class="btn primary">Simpan</button></div></div></div>
@@ -2632,54 +2708,240 @@ async function api(path, opts = {}) {
   return data;
 }
 
-function openAdminLogin() {
-  const message = $('adminLoginMessage');
-  if (message) message.innerHTML = '';
+async function openAdminLogin() {
   $('adminLoginModal').classList.add('show');
-  setTimeout(() => $('adminKey')?.focus(), 50);
+   $('adminChangePasswordPanel').style.display = 'none';
+$('adminLoginTitle').textContent = 'Masuk sebagai Admin';
+
+  $('adminSetupPanel').style.display = 'none';
+  $('adminLoginPanel').style.display = 'block';
+
+  $('adminLoginMessage').innerHTML = '';
+  $('adminSetupMessage').innerHTML = '';
+
+  try {
+    const status = await api('/api/admin/setup-status');
+    const setupRequired = Boolean(status.setup_required);
+
+    $('adminSetupPanel').style.display =
+      setupRequired ? 'block' : 'none';
+
+    $('adminLoginPanel').style.display =
+      setupRequired ? 'none' : 'block';
+
+    $('adminLoginTitle').textContent =
+      setupRequired ? 'Aktivasi Super Admin' : 'Masuk sebagai Admin';
+
+    setTimeout(() => {
+      $(setupRequired ? 'adminBootstrapKey' : 'adminUsername')?.focus();
+    }, 50);
+
+  } catch (error) {
+    $('adminLoginMessage').innerHTML =
+      `<div class="note">${esc(error.message)}</div>`;
+  }
 }
+
 function closeAdminLogin() {
   $('adminLoginModal').classList.remove('show');
+
   $('adminLoginForm')?.reset();
-  const message = $('adminLoginMessage');
-  if (message) message.innerHTML = '';
+  $('adminSetupForm')?.reset();
+
+  $('adminLoginMessage').innerHTML = '';
+  $('adminSetupMessage').innerHTML = '';
 }
+
 function adminLoginOutside(event) {
-  if (event.target === $('adminLoginModal')) closeAdminLogin();
+  if (event.target === $('adminLoginModal')) {
+    closeAdminLogin();
+  }
 }
+
 async function adminLogin(event) {
   event.preventDefault();
+
   const message = $('adminLoginMessage');
   const button = $('adminLoginForm')?.querySelector('button[type="submit"]');
-  if (button) button.disabled = true;
-  if (message) message.innerHTML = '';
+
+  button.disabled = true;
+  message.innerHTML = '';
+
   try {
     const result = await api('/api/admin/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key: $('adminKey').value })
+      body: JSON.stringify({
+        username: $('adminUsername').value.trim(),
+        password: $('adminPassword').value
+      })
     });
-    if (result.admin_token) sessionStorage.setItem('promed_admin_token', result.admin_token);
+
+    if (!result.admin_token) {
+      throw new Error('Token login admin tidak tersedia.');
+    }
+
+    sessionStorage.setItem('promed_admin_token', result.admin_token);
+
+   if (Number(result.admin?.must_change_password || 0) === 1) {
+  $('adminSetupPanel').style.display = 'none';
+  $('adminLoginPanel').style.display = 'none';
+  $('adminChangePasswordPanel').style.display = 'block';
+
+  $('adminLoginTitle').textContent = 'Ganti Password Awal';
+
+  return;
+}
+
     closeAdminLogin();
     await boot();
     showView('admin');
+
   } catch (error) {
-    if (message) message.innerHTML = `<div class="note" style="background:#fff1f2;border-color:#f2d0d5;color:#9c2230">${esc(error.message)}</div>`;
+    message.innerHTML =
+      `<div class="note">${esc(error.message)}</div>`;
   } finally {
-    if (button) button.disabled = false;
+    button.disabled = false;
   }
 }
 
+async function adminBootstrap(event) {
+  event.preventDefault();
+
+  const message = $('adminSetupMessage');
+  const button = $('adminSetupForm')?.querySelector('button[type="submit"]');
+
+  button.disabled = true;
+  message.innerHTML = '';
+
+  try {
+    const result = await api('/api/admin/bootstrap', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        bootstrap_key: $('adminBootstrapKey').value,
+        display_name: $('adminDisplayName').value.trim(),
+        username: $('adminSetupUsername').value.trim(),
+        password: $('adminSetupPassword').value
+      })
+    });
+
+    if (!result.admin_token) {
+      throw new Error('Token Super Admin tidak tersedia.');
+    }
+
+    sessionStorage.setItem('promed_admin_token', result.admin_token);
+
+    closeAdminLogin();
+    await boot();
+    showView('admin');
+
+  } catch (error) {
+    message.innerHTML =
+      `<div class="note">${esc(error.message)}</div>`;
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function adminChangePassword(event) {
+  event.preventDefault();
+
+  const message = $('adminChangePasswordMessage');
+  const button = $('adminChangePasswordForm')
+    ?.querySelector('button[type="submit"]');
+
+  const currentPassword = $('adminCurrentPassword').value;
+  const newPassword = $('adminNewPassword').value;
+  const confirmPassword = $('adminConfirmPassword').value;
+
+  message.innerHTML = '';
+
+  if (newPassword.length < 12) {
+    message.innerHTML =
+      '<div class="note">Password baru minimal 12 karakter.</div>';
+    return;
+  }
+
+  if (newPassword !== confirmPassword) {
+    message.innerHTML =
+      '<div class="note">Konfirmasi password tidak sama.</div>';
+    return;
+  }
+
+  button.disabled = true;
+
+  try {
+    const result = await api('/api/admin/change-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        current_password: currentPassword,
+        new_password: newPassword
+      })
+    });
+
+    if (!result.admin_token) {
+      throw new Error('Token baru tidak tersedia.');
+    }
+
+    sessionStorage.setItem(
+      'promed_admin_token',
+      result.admin_token
+    );
+
+    $('adminChangePasswordForm').reset();
+    $('adminChangePasswordPanel').style.display = 'none';
+
+    closeAdminLogin();
+    await boot();
+    showView('admin');
+
+  } catch (error) {
+    message.innerHTML =
+      `<div class="note">${esc(error.message)}</div>`;
+  } finally {
+    button.disabled = false;
+  }
+}
 async function boot() {
   try {
     const session = await api('/api/me');
-    S.role = session.authenticated && session.role === 'admin' ? 'admin' : 'public';
-    S.user = S.role === 'admin' ? { name: 'Administrator' } : null;
+
+    const mustChangePassword =
+      session.authenticated &&
+      session.role === 'admin' &&
+      Number(session.admin?.must_change_password || 0) === 1;
+
+    if (mustChangePassword) {
+      S.role = 'public';
+      S.user = null;
+
+      $('adminLoginModal').classList.add('show');
+      $('adminSetupPanel').style.display = 'none';
+      $('adminLoginPanel').style.display = 'none';
+      $('adminChangePasswordPanel').style.display = 'block';
+      $('adminLoginTitle').textContent = 'Ganti Password Awal';
+
+      return;
+    }
+
+    S.role = session.authenticated && session.role === 'admin'
+      ? 'admin'
+      : 'public';
+
+    S.user = S.role === 'admin'
+      ? { name: 'Administrator' }
+      : null;
+
     await bootApp();
+
   } catch (error) {
     console.error('ProMed Hub gagal memuat sesi:', error);
+
     S.role = 'public';
     S.user = null;
+
     await bootApp();
   }
 }
