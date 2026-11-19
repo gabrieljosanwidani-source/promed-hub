@@ -48,6 +48,7 @@ async function randomToken(bytes = 32) {
   crypto.getRandomValues(a);
   return [...a].map(x => x.toString(16).padStart(2, '0')).join('');
 }
+
   async function passwordHash(value, salt, iterations = 310000) {
   const key = await crypto.subtle.importKey(
     'raw',
@@ -92,9 +93,29 @@ function classScopeSql(type, alias, filter) {
 
 async function getClassFilter(request, env) {
   const requested = new URL(request.url).searchParams.get('class');
-  const admin = await isAdmin(request, env);
-  if (!requested) return admin ? null : '__NO_CLASS__';
-  if (requested === 'Semua Kelas') return admin ? null : '__NO_CLASS__';
+  const account = await getAdminAccount(request, env);
+
+  if (account?.role === 'super_admin') {
+    if (!requested || requested === 'Semua Kelas') return null;
+    return PROMED_CLASSES.includes(requested) ? requested : '__INVALID__';
+  }
+
+  if (account?.role === 'class_admin') {
+    const assignedClass = account.class_name;
+    if (!PROMED_CLASSES.includes(assignedClass)) return '__INVALID__';
+    if (requested && requested !== 'Semua Kelas' && requested !== assignedClass) {
+      return '__INVALID__';
+    }
+    return assignedClass;
+  }
+
+  // Admin Key lama tetap berlaku hanya sebelum Super Admin pertama dibuat.
+  if (await isAdmin(request, env)) {
+    if (!requested || requested === 'Semua Kelas') return null;
+    return PROMED_CLASSES.includes(requested) ? requested : '__INVALID__';
+  }
+
+  if (!requested || requested === 'Semua Kelas') return '__NO_CLASS__';
   return PROMED_CLASSES.includes(requested) ? requested : '__INVALID__';
 }
 
@@ -111,10 +132,22 @@ async function setContentClass(env, type, id, className) {
 }
 
 async function canViewClassContent(env, request, type, id) {
+  const account = await getAdminAccount(request, env);
+
+  if (account?.role === 'super_admin') return true;
+
+  const row = await env.DB.prepare(
+    'SELECT class_name FROM pm_class_content WHERE content_type=? AND content_id=?'
+  ).bind(type, id).first();
+
+  if (account?.role === 'class_admin') {
+    if (!PROMED_CLASSES.includes(account.class_name)) return false;
+    return !row || row.class_name === account.class_name;
+  }
+
   if (await isAdmin(request, env)) return true;
-  const row = await env.DB.prepare('SELECT class_name FROM pm_class_content WHERE content_type=? AND content_id=?')
-    .bind(type, id).first();
   if (!row) return true;
+
   const requested = new URL(request.url).searchParams.get('class');
   return PROMED_CLASSES.includes(requested) && row.class_name === requested;
 }
@@ -268,23 +301,87 @@ async function currentStudent(request, env) {
   if (!row || !row.active || new Date(row.expires_at).getTime() <= Date.now()) return null;
   return row;
 }
-async function isAdmin(request, env) {
+async function getAdminAccount(request, env) {
   const auth = request.headers.get('authorization') || '';
-
-  let token = auth.startsWith('Bearer ')
+  const token = auth.startsWith('Bearer ')
     ? auth.slice(7).trim()
     : cookieValue(request, COOKIE.admin);
 
+  if (!token) return null;
+
+  const hash = await sha256(token);
+  const row = await env.DB.prepare(`
+    SELECT
+      a.id,
+      a.username,
+      a.display_name,
+      a.role,
+      a.class_name,
+      a.must_change_password,
+      s.expires_at
+    FROM pm_admin_account_sessions s
+    JOIN pm_admins a ON a.id = s.admin_id
+    WHERE s.token_hash = ?
+      AND s.revoked_at IS NULL
+      AND a.is_active = 1
+  `).bind(hash).first();
+
+  if (!row || new Date(row.expires_at).getTime() <= Date.now()) return null;
+  return row;
+}
+
+async function hasSuperAdmin(env) {
+  const row = await env.DB.prepare(
+    "SELECT id FROM pm_admins WHERE role='super_admin' LIMIT 1"
+  ).first();
+  return Boolean(row);
+}
+
+async function isAdmin(request, env) {
+  if (await getAdminAccount(request, env)) return true;
+
+  // Sesi Admin Key lama hanya berlaku sebelum Super Admin pertama dibuat.
+  if (await hasSuperAdmin(env)) return false;
+
+  const auth = request.headers.get('authorization') || '';
+  const token = auth.startsWith('Bearer ')
+    ? auth.slice(7).trim()
+    : cookieValue(request, COOKIE.admin);
   if (!token) return false;
 
   const hash = await sha256(token);
-
-  const row = await env.DB
-    .prepare('SELECT expires_at FROM pm_admin_sessions WHERE token_hash=?')
-    .bind(hash)
-    .first();
+  const row = await env.DB.prepare(
+    'SELECT expires_at FROM pm_admin_sessions WHERE token_hash=?'
+  ).bind(hash).first();
 
   return !!row && new Date(row.expires_at).getTime() > Date.now();
+}
+async function canManageClass(request, env, className) {
+  if (!validClassName(className)) {
+    return false;
+  }
+
+  const account = await getAdminAccount(request, env);
+
+  // Super Admin boleh mengelola semua kelas.
+  if (account?.role === 'super_admin') {
+    return true;
+  }
+
+  // Admin Kelas hanya boleh mengelola kelasnya sendiri.
+  if (account?.role === 'class_admin') {
+    return (
+      PROMED_CLASSES.includes(account.class_name) &&
+      className === account.class_name
+    );
+  }
+
+  // Admin Key lama hanya berlaku sebelum Super Admin dibuat.
+  if (!account && await isAdmin(request, env)) {
+    return true;
+  }
+
+  return false;
 }
 async function requireStudent(request, env) {
   const s = await currentStudent(request, env);
@@ -332,18 +429,153 @@ async function loginStudent(request, env) {
   return res;
 }
 
-async function loginAdmin(request, env) {
-  const data = await request.json().catch(() => ({}));
-  if (!env.ADMIN_KEY || String(data.key || '') !== env.ADMIN_KEY) return json({message:'Admin key salah.'}, 401);
+async function createAdminAccountSession(env, admin) {
   const token = await randomToken(32);
   const hash = await sha256(token);
-  const expires = new Date(Date.now() + maxAgeDays(1)).toISOString();
-  await env.DB.prepare('INSERT INTO pm_admin_sessions(token_hash,created_at,expires_at) VALUES(?,?,?)').bind(hash, now(), expires).run();
-  return json(
-  {message:'Login admin berhasil.', admin_token: token},
-  200,
-  {'Set-Cookie': cookieHeader(COOKIE.admin, token, maxAgeDays(1))}
-);
+  const expires = new Date(Date.now() + maxAgeDays(1) * 1000).toISOString();
+
+  await env.DB.prepare(`
+    INSERT INTO pm_admin_account_sessions
+      (admin_id, token_hash, created_at, expires_at)
+    VALUES (?, ?, ?, ?)
+  `).bind(admin.id, hash, now(), expires).run();
+
+  return json({
+    message: 'Login admin berhasil.',
+    admin_token: token,
+    admin: {
+      id: admin.id,
+      username: admin.username,
+      display_name: admin.display_name,
+      role: admin.role,
+      class_name: admin.class_name || null,
+      must_change_password: Number(admin.must_change_password || 0)
+    }
+  }, 200, {
+    'Set-Cookie': cookieHeader(COOKIE.admin, token, maxAgeDays(1))
+  });
+}
+
+async function adminSetupStatus(env) {
+  return json({ setup_required: !(await hasSuperAdmin(env)) });
+}
+
+async function bootstrapSuperAdmin(request, env) {
+  const data = await request.json().catch(() => ({}));
+
+  if (!env.ADMIN_KEY || String(data.bootstrap_key || '') !== env.ADMIN_KEY) {
+    return json({ message: 'Kunci pendaftaran awal tidak cocok.' }, 401);
+  }
+
+  const username = String(data.username || '').trim().toLowerCase();
+  const displayName = String(data.display_name || '').trim();
+  const password = String(data.password || '');
+
+  if (!/^[a-z0-9._-]{3,32}$/.test(username)) {
+    return json({ message: 'Username harus 3–32 karakter.' }, 400);
+  }
+  if (displayName.length < 2 || displayName.length > 80) {
+    return json({ message: 'Nama tampilan harus 2–80 karakter.' }, 400);
+  }
+  if (password.length < 12 || password.length > 128) {
+    return json({ message: 'Password harus 12–128 karakter.' }, 400);
+  }
+
+  const salt = await randomToken(16);
+  const iterations = 310000;
+  const hash = await passwordHash(password, salt, iterations);
+  const timestamp = now();
+
+  let result;
+  try {
+    result = await env.DB.prepare(`
+      INSERT INTO pm_admins (
+        username, display_name, password_hash, password_salt,
+        password_iterations, role, class_name, is_active,
+        must_change_password, created_at, updated_at, created_by
+      )
+      SELECT ?, ?, ?, ?, ?, 'super_admin', NULL, 1, 0, ?, ?, NULL
+      WHERE NOT EXISTS (
+        SELECT 1 FROM pm_admins WHERE role='super_admin'
+      )
+    `).bind(
+      username, displayName, hash, salt, iterations, timestamp, timestamp
+    ).run();
+  } catch (error) {
+    console.error('Super Admin bootstrap failed:', error);
+    return json({ message: 'Akun tidak dapat dibuat. Username mungkin sudah digunakan.' }, 409);
+  }
+
+  if (Number(result.meta?.changes || 0) !== 1) {
+    return json({ message: 'Akun Super Admin pertama sudah dibuat.' }, 409);
+  }
+
+  const admin = await env.DB.prepare(`
+    SELECT id, username, display_name, role, class_name, must_change_password
+    FROM pm_admins WHERE username = ? LIMIT 1
+  `).bind(username).first();
+
+  if (!admin) return json({ message: 'Akun tersimpan, tetapi sesi belum dapat dibuat.' }, 500);
+  return createAdminAccountSession(env, admin);
+}
+
+async function loginAdmin(request, env) {
+  const data = await request.json().catch(() => ({}));
+  const username = String(data.username || '').trim().toLowerCase();
+
+  if (username) {
+    const password = String(data.password || '');
+    const admin = await env.DB.prepare(`
+      SELECT id, username, display_name, password_hash, password_salt,
+             password_iterations, role, class_name, must_change_password
+      FROM pm_admins
+      WHERE username = ? AND is_active = 1
+      LIMIT 1
+    `).bind(username).first();
+
+    if (!admin || !password) {
+      return json({ message: 'Username atau password tidak cocok.' }, 401);
+    }
+
+    const candidate = await passwordHash(
+      password,
+      admin.password_salt,
+      Number(admin.password_iterations || 310000)
+    );
+
+    if (candidate !== admin.password_hash) {
+      return json({ message: 'Username atau password tidak cocok.' }, 401);
+    }
+
+    await env.DB.prepare(`
+      UPDATE pm_admins SET last_login_at = ?, updated_at = ? WHERE id = ?
+    `).bind(now(), now(), admin.id).run();
+
+    return createAdminAccountSession(env, admin);
+  }
+
+  // Login Admin Key lama dinonaktifkan setelah akun Super Admin tersedia.
+  if (await hasSuperAdmin(env)) {
+    return json({
+      message: 'Login Admin Key sudah dinonaktifkan. Gunakan username dan password.'
+    }, 410);
+  }
+
+  if (!env.ADMIN_KEY || String(data.key || '') !== env.ADMIN_KEY) {
+    return json({ message: 'Admin key salah.' }, 401);
+  }
+
+  const token = await randomToken(32);
+  const hash = await sha256(token);
+  const expires = new Date(Date.now() + maxAgeDays(1) * 1000).toISOString();
+  await env.DB.prepare(`
+    INSERT INTO pm_admin_sessions (token_hash, created_at, expires_at)
+    VALUES (?, ?, ?)
+  `).bind(hash, now(), expires).run();
+
+  return json({ message: 'Login admin berhasil.', admin_token: token }, 200, {
+    'Set-Cookie': cookieHeader(COOKIE.admin, token, maxAgeDays(1))
+  });
 }
 
 async function logoutStudent(env, request) {
@@ -354,9 +586,26 @@ async function logoutStudent(env, request) {
   return json({message:'Logout berhasil.'}, 200, Object.fromEntries(headers));
 }
 async function logoutAdmin(env, request) {
-  const token = cookieValue(request, COOKIE.admin);
-  if (token) await env.DB.prepare('DELETE FROM pm_admin_sessions WHERE token_hash=?').bind(await sha256(token)).run();
-  return json({message:'Logout admin berhasil.'}, 200, {'Set-Cookie': clearCookieHeader(COOKIE.admin)});
+  const auth = request.headers.get('authorization') || '';
+  const token = auth.startsWith('Bearer ')
+    ? auth.slice(7).trim()
+    : cookieValue(request, COOKIE.admin);
+
+  if (token) {
+    const hash = await sha256(token);
+    await env.DB.prepare(`
+      UPDATE pm_admin_account_sessions
+      SET revoked_at = ?
+      WHERE token_hash = ? AND revoked_at IS NULL
+    `).bind(now(), hash).run();
+    await env.DB.prepare(
+      'DELETE FROM pm_admin_sessions WHERE token_hash = ?'
+    ).bind(hash).run();
+  }
+
+  return json({ message: 'Logout admin berhasil.' }, 200, {
+    'Set-Cookie': clearCookieHeader(COOKIE.admin)
+  });
 }
 
 function userPayload(user) {
@@ -529,6 +778,11 @@ async function adminCreateMaterial(request, env) {
   const sourceUrl = String(form.get('source_url') || '').trim();
   const className = String(form.get('class_name') || 'Semua Kelas').trim();
   if (!validClassName(className)) return json({ message: 'Kelas yang dipilih tidak valid.' }, 400);
+  if (!(await canManageClass(request, env, className))) {
+  return json({
+    message: 'Akun ini tidak memiliki akses untuk mengelola kelas tersebut.'
+  }, 403);
+}
 
   if (!title || !course) {
     return json({
@@ -599,6 +853,11 @@ async function adminCreateQuiz(request, env) {
   const meeting = String(form.get('meeting') || '').trim();
   const className = String(form.get('class_name') || 'Semua Kelas').trim();
   if (!validClassName(className)) return json({ message: 'Kelas yang dipilih tidak valid.' }, 400);
+  if (!(await canManageClass(request, env, className))) {
+  return json({
+    message: 'Akun ini tidak memiliki akses untuk mengelola kelas tersebut.'
+  }, 403);
+}
 
   if (!title || !course) {
     return json({
@@ -666,6 +925,11 @@ async function adminCreateTemplate(request, env) {
   const description = String(form.get('description') || '').trim();
   const className = String(form.get('class_name') || 'Semua Kelas').trim();
   if (!validClassName(className)) return json({ message: 'Kelas yang dipilih tidak valid.' }, 400);
+  if (!(await canManageClass(request, env, className))) {
+  return json({
+    message: 'Akun ini tidak memiliki akses untuk mengelola kelas tersebut.'
+  }, 403);
+}
 
   if (!title || !Number.isInteger(courseId) || courseId <= 0) {
     return json({
@@ -680,6 +944,10 @@ async function adminCreateTemplate(request, env) {
 
   if (!course) {
     return json({ message: 'Mata kuliah tidak ditemukan.' }, 404);
+  }
+
+  if (!(await canViewClassContent(env, request, 'course', courseId))) {
+    return json({ message: 'Mata kuliah tersebut bukan milik kelas akun admin ini.' }, 403);
   }
 
   if (file.size > MAX_FILE_SIZE) {
@@ -756,6 +1024,11 @@ async function adminCreateAssignment(request, env) {
 
   if (!title || !course) return json({ message: 'Judul dan mata kuliah wajib diisi.' }, 400);
   if (!validClassName(className)) return json({ message: 'Kelas yang dipilih tidak valid.' }, 400);
+  if (!(await canManageClass(request, env, className))) {
+  return json({
+    message: 'Akun ini tidak memiliki akses untuk mengelola kelas tersebut.'
+  }, 403);
+}
 
   const allowedExtensions = new Set(['pdf','doc','docx','ppt','pptx','xls','xlsx','jpg','jpeg','png','txt']);
   if (file) {
@@ -1301,6 +1574,310 @@ async function getAdminSummary(env, request) {
   });
 }
 
+async function readAdminClassName(request) {
+  const contentType = request.headers.get('content-type') || '';
+  try {
+    if (contentType.includes('application/json')) {
+      const data = await request.clone().json();
+      return String(data.class_name || '').trim();
+    }
+    if (contentType.includes('multipart/form-data')) {
+      const form = await request.clone().formData();
+      return String(form.get('class_name') || '').trim();
+    }
+  } catch (error) {
+    console.error('Tidak dapat membaca kelas dari request admin:', error);
+  }
+  return '';
+}
+
+function adminContentTypeFromPath(path) {
+  if (path.includes('/courses')) return 'course';
+  if (path.includes('/materials')) return 'material';
+  if (path.includes('/quizzes')) return 'quiz';
+  if (path.includes('/assignments')) return 'assignment';
+  if (path.includes('/templates')) return 'template';
+  if (path.includes('/announcements')) return 'announcement';
+  return null;
+}
+
+async function authorizeAdminRequest(request, env, path) {
+  const account = await getAdminAccount(request, env);
+
+  if (!account) {
+    if (await isAdmin(request, env)) return null;
+    return json({ message: 'Belum login admin.' }, 401);
+  }
+
+  if (account.role === 'super_admin') return null;
+  if (account.role !== 'class_admin' || !PROMED_CLASSES.includes(account.class_name)) {
+    return json({ message: 'Peran atau kelas akun admin tidak valid.' }, 403);
+  }
+
+  const method = request.method.toUpperCase();
+  const assignedClass = account.class_name;
+  if (
+  Number(account.must_change_password || 0) === 1 &&
+  !(method === 'POST' && path === '/api/admin/change-password')
+) {
+  return json({
+    message: 'Silakan ganti password awal terlebih dahulu.'
+  }, 403);
+}
+
+  // Admin Kelas hanya dapat membuka daftar konten kelasnya sendiri.
+  if (method === 'GET' && [
+    '/api/admin/courses',
+    '/api/admin/announcements'
+  ].includes(path)) {
+    return null;
+  }
+
+  // Admin Kelas tidak boleh membaca ringkasan global, pengaturan, data akun,
+  // ataupun endpoint administrasi lain di luar pengelolaan konten kelas.
+  if (method === 'POST' && path === '/api/admin/change-password') return null;
+  if (path.startsWith('/api/admin/accounts')) {
+    return json({ message: 'Hanya Super Admin yang dapat mengelola akun admin.' }, 403);
+  }
+
+  const createRoutes = new Set([
+    '/api/admin/courses',
+    '/api/admin/materials',
+    '/api/admin/quizzes',
+    '/api/admin/assignments',
+    '/api/admin/templates',
+    '/api/admin/announcements'
+  ]);
+
+  if (method === 'POST' && createRoutes.has(path)) {
+    const requestedClass = await readAdminClassName(request);
+    if (requestedClass !== assignedClass) {
+      return json({
+        message: `Admin ini hanya boleh membuat konten untuk kelas ${assignedClass}.`
+      }, 403);
+    }
+    return null;
+  }
+
+  const contentType = adminContentTypeFromPath(path);
+  if (!contentType) {
+    return json({ message: 'Akses ini hanya tersedia untuk Super Admin.' }, 403);
+  }
+
+  const idMatch = path.match(/\/(\d+)(?:\/status)?$/);
+  if (!idMatch || !['PUT', 'PATCH', 'DELETE'].includes(method)) {
+    return json({ message: 'Aksi admin tidak diizinkan.' }, 403);
+  }
+
+  const contentId = Number(idMatch[1]);
+  if (!Number.isInteger(contentId) || contentId <= 0) {
+    return json({ message: 'ID konten tidak valid.' }, 400);
+  }
+
+  const mapping = await env.DB.prepare(`
+    SELECT class_name FROM pm_class_content
+    WHERE content_type = ? AND content_id = ?
+    LIMIT 1
+  `).bind(contentType, contentId).first();
+
+  // Data tanpa pemetaan dianggap konten bersama (Semua Kelas), sehingga
+  // tidak boleh diubah atau dihapus oleh Admin Kelas.
+  if (!mapping || mapping.class_name !== assignedClass) {
+    return json({ message: `Konten ini bukan milik kelas ${assignedClass}.` }, 403);
+  }
+
+  // Saat mengubah konten, class_name tidak boleh diganti ke kelas lain
+  // atau menjadi Semua Kelas.
+  if (method === 'PUT') {
+    const requestedClass = await readAdminClassName(request);
+    if (requestedClass !== assignedClass) {
+      return json({ message: `Konten harus tetap berada di kelas ${assignedClass}.` }, 403);
+    }
+  }
+
+  return null;
+}
+
+async function requireSuperAdmin(request, env) {
+  const account = await getAdminAccount(request, env);
+  if (!account || account.role !== 'super_admin') {
+    return { error: json({ message: 'Akses khusus Super Admin.' }, 403) };
+  }
+  return { account };
+}
+
+async function adminListAccounts(request, env) {
+  const auth = await requireSuperAdmin(request, env);
+  if (auth.error) return auth.error;
+  const q = await env.DB.prepare(`
+    SELECT id, username, display_name, role, class_name, is_active,
+           must_change_password, created_at, updated_at, last_login_at
+    FROM pm_admins
+    ORDER BY CASE role WHEN 'super_admin' THEN 0 ELSE 1 END, class_name, username
+  `).all();
+  return json({ items: q.results || [] });
+}
+
+async function adminCreateClassAccount(request, env) {
+  const auth = await requireSuperAdmin(request, env);
+  if (auth.error) return auth.error;
+
+  const data = await request.json().catch(() => ({}));
+  const username = String(data.username || '').trim().toLowerCase();
+  const displayName = String(data.display_name || '').trim();
+  const password = String(data.password || '');
+  const className = String(data.class_name || '').trim();
+
+  if (!/^[a-z0-9._-]{3,32}$/.test(username)) {
+    return json({ message: 'Username harus 3–32 karakter.' }, 400);
+  }
+  if (displayName.length < 2 || displayName.length > 80) {
+    return json({ message: 'Nama tampilan harus 2–80 karakter.' }, 400);
+  }
+  if (password.length < 12 || password.length > 128) {
+    return json({ message: 'Password awal harus 12–128 karakter.' }, 400);
+  }
+  if (!PROMED_CLASSES.includes(className)) {
+    return json({ message: 'Pilih satu kelas yang valid untuk Admin Kelas.' }, 400);
+  }
+
+  const salt = await randomToken(16);
+  const iterations = 310000;
+  const hash = await passwordHash(password, salt, iterations);
+  try {
+    const result = await env.DB.prepare(`
+      INSERT INTO pm_admins (
+        username, display_name, password_hash, password_salt,
+        password_iterations, role, class_name, is_active,
+        must_change_password, created_at, updated_at, created_by
+      ) VALUES (?, ?, ?, ?, ?, 'class_admin', ?, 1, 1, ?, ?, ?)
+    `).bind(
+      username, displayName, hash, salt, iterations, className,
+      now(), now(), auth.account.id
+    ).run();
+
+    return json({
+      message: `Admin Kelas untuk ${className} berhasil dibuat.`,
+      id: result.meta.last_row_id,
+      username,
+      class_name: className,
+      must_change_password: 1
+    }, 201);
+  } catch (error) {
+    console.error('Create class admin failed:', error);
+    return json({ message: 'Akun gagal dibuat. Username mungkin sudah digunakan.' }, 409);
+  }
+}
+
+async function adminSetAccountActive(request, env, id) {
+  const auth = await requireSuperAdmin(request, env);
+  if (auth.error) return auth.error;
+  const data = await request.json().catch(() => ({}));
+  const active = data.is_active === true || data.is_active === 1 || data.is_active === '1' ? 1 :
+    data.is_active === false || data.is_active === 0 || data.is_active === '0' ? 0 : null;
+  if (active === null) return json({ message: 'Status akun tidak valid.' }, 400);
+
+  const target = await env.DB.prepare(
+    'SELECT id, role FROM pm_admins WHERE id = ?'
+  ).bind(id).first();
+  if (!target) return json({ message: 'Akun admin tidak ditemukan.' }, 404);
+  if (target.role === 'super_admin' || Number(target.id) === Number(auth.account.id)) {
+    return json({ message: 'Akun Super Admin utama tidak dapat dinonaktifkan melalui fitur ini.' }, 403);
+  }
+
+  await env.DB.prepare(`
+    UPDATE pm_admins SET is_active = ?, updated_at = ? WHERE id = ?
+  `).bind(active, now(), id).run();
+  if (!active) {
+    await env.DB.prepare(`
+      UPDATE pm_admin_account_sessions SET revoked_at = ?
+      WHERE admin_id = ? AND revoked_at IS NULL
+    `).bind(now(), id).run();
+  }
+  return json({ message: active ? 'Akun admin diaktifkan.' : 'Akun admin dinonaktifkan.' });
+}
+
+async function adminResetAccountPassword(request, env, id) {
+  const auth = await requireSuperAdmin(request, env);
+  if (auth.error) return auth.error;
+  const data = await request.json().catch(() => ({}));
+  const password = String(data.password || '');
+  if (password.length < 12 || password.length > 128) {
+    return json({ message: 'Password baru harus 12–128 karakter.' }, 400);
+  }
+
+  const target = await env.DB.prepare(
+    'SELECT id, role FROM pm_admins WHERE id = ?'
+  ).bind(id).first();
+  if (!target) return json({ message: 'Akun admin tidak ditemukan.' }, 404);
+  if (target.role === 'super_admin') {
+    return json({ message: 'Reset password Super Admin tidak tersedia melalui endpoint ini.' }, 403);
+  }
+
+  const salt = await randomToken(16);
+  const iterations = 310000;
+  const hash = await passwordHash(password, salt, iterations);
+  await env.DB.prepare(`
+    UPDATE pm_admins
+    SET password_hash = ?, password_salt = ?, password_iterations = ?,
+        must_change_password = 1, updated_at = ?
+    WHERE id = ?
+  `).bind(hash, salt, iterations, now(), id).run();
+  await env.DB.prepare(`
+    UPDATE pm_admin_account_sessions SET revoked_at = ?
+    WHERE admin_id = ? AND revoked_at IS NULL
+  `).bind(now(), id).run();
+  return json({ message: 'Password berhasil direset. Admin harus login kembali dan mengganti password.' });
+}
+
+async function adminChangeOwnPassword(request, env) {
+  const account = await getAdminAccount(request, env);
+  if (!account) return json({ message: 'Belum login dengan akun admin.' }, 401);
+  const data = await request.json().catch(() => ({}));
+  const currentPassword = String(data.current_password || '');
+  const newPassword = String(data.new_password || '');
+  if (newPassword.length < 12 || newPassword.length > 128) {
+    return json({ message: 'Password baru harus 12–128 karakter.' }, 400);
+  }
+
+  const saved = await env.DB.prepare(`
+    SELECT password_hash, password_salt, password_iterations
+    FROM pm_admins WHERE id = ? AND is_active = 1
+  `).bind(account.id).first();
+  if (!saved || !currentPassword) {
+    return json({ message: 'Password saat ini tidak cocok.' }, 401);
+  }
+  const candidate = await passwordHash(
+    currentPassword,
+    saved.password_salt,
+    Number(saved.password_iterations || 310000)
+  );
+  if (candidate !== saved.password_hash) {
+    return json({ message: 'Password saat ini tidak cocok.' }, 401);
+  }
+
+  const salt = await randomToken(16);
+  const iterations = 310000;
+  const hash = await passwordHash(newPassword, salt, iterations);
+  await env.DB.prepare(`
+    UPDATE pm_admins
+    SET password_hash = ?, password_salt = ?, password_iterations = ?,
+        must_change_password = 0, updated_at = ?
+    WHERE id = ?
+  `).bind(hash, salt, iterations, now(), account.id).run();
+
+  await env.DB.prepare(`
+    UPDATE pm_admin_account_sessions SET revoked_at = ?
+    WHERE admin_id = ? AND revoked_at IS NULL
+  `).bind(now(), account.id).run();
+
+  const refreshed = await env.DB.prepare(`
+    SELECT id, username, display_name, role, class_name, must_change_password
+    FROM pm_admins WHERE id = ?
+  `).bind(account.id).first();
+  return createAdminAccountSession(env, refreshed);
+}
+
 async function serveFile(env, request, type, id) {
   if (type === 'submission') {
     return new Response('Pengumpulan file melalui ProMed Hub sudah dinonaktifkan. Gunakan platform resmi kampus.', { status: 410 });
@@ -1363,12 +1940,52 @@ export default {
       if(p==='/api/health')return json({ok:true,service:'ProMed Hub Staging'});
       if(request.method==='GET'&&p==='/api/classes')return json({items:PROMED_CLASSES.map(name=>({name,label:`Kelas ${name}`}))});
       if(request.method==='POST'&&p==='/api/login')return json({message:'Login mahasiswa sudah dinonaktifkan. Website dapat diakses langsung.'},410);
-      if(request.method==='POST'&&p==='/api/admin/login')return loginAdmin(request,env);
-      if(request.method==='POST'&&p==='/api/logout')return json({message:'Login mahasiswa sudah tidak digunakan.'},410);
-      if(request.method==='POST'&&p==='/api/admin/logout')return logoutAdmin(env,request);
-      if(request.method==='GET'&&p==='/api/me'){
-        if(await isAdmin(request,env)) return json({authenticated:true,role:'admin'});
-        return json({authenticated:false,role:'public'},200);
+      if (request.method === 'GET' && p === '/api/admin/setup-status') return adminSetupStatus(env);
+      if (request.method === 'POST' && p === '/api/admin/bootstrap') return bootstrapSuperAdmin(request, env);
+      if (request.method === 'POST' && p === '/api/admin/login') return loginAdmin(request, env);
+      if (request.method === 'POST' && p === '/api/logout') return json({ message: 'Login mahasiswa sudah tidak digunakan.' }, 410);
+      if (request.method === 'POST' && p === '/api/admin/logout') return logoutAdmin(env, request);
+      if (request.method === 'GET' && p === '/api/me') {
+        const account = await getAdminAccount(request, env);
+        if (account) {
+          return json({
+            authenticated: true,
+            role: 'admin',
+            admin: {
+              id: account.id,
+              username: account.username,
+              display_name: account.display_name,
+              admin_role: account.role,
+              class_name: account.class_name || null,
+              must_change_password: Number(account.must_change_password || 0)
+            }
+          });
+        }
+        if (await isAdmin(request, env)) {
+          return json({ authenticated: true, role: 'admin', admin: null });
+        }
+        return json({ authenticated: false, role: 'public' }, 200);
+      }
+
+      if (p.startsWith('/api/admin/')) {
+        const authorizationResponse = await authorizeAdminRequest(request, env, p);
+        if (authorizationResponse) return authorizationResponse;
+      }
+
+      if (request.method === 'POST' && p === '/api/admin/change-password') {
+        return adminChangeOwnPassword(request, env);
+      }
+      if (request.method === 'GET' && p === '/api/admin/accounts') {
+        return adminListAccounts(request, env);
+      }
+      if (request.method === 'POST' && p === '/api/admin/accounts') {
+        return adminCreateClassAccount(request, env);
+      }
+      if (request.method === 'PATCH' && /^\/api\/admin\/accounts\/\d+\/active$/.test(p)) {
+        return adminSetAccountActive(request, env, Number(p.split('/')[4]));
+      }
+      if (request.method === 'POST' && /^\/api\/admin\/accounts\/\d+\/reset-password$/.test(p)) {
+        return adminResetAccountPassword(request, env, Number(p.split('/')[4]));
       }
             if(request.method==='GET'&&p==='/api/profile/photo')return json({message:'Profil mahasiswa sudah tidak digunakan.'},410);
 
