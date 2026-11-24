@@ -2528,10 +2528,10 @@ body.admin .nav button.admin-only { display: flex; }
     <h3 id="classPickerTitle">Pilih Kelas</h3>
     <p id="classPickerDescription">Pilih kelas agar materi, kuis, tugas, dan pengumuman yang tampil sesuai kelasmu.</p>
     <div class="class-picker-grid">
-      <button type="button" class="class-choice-btn" onclick="chooseClass('26 A')">Kelas 26 A</button>
-      <button type="button" class="class-choice-btn" onclick="chooseClass('26 B')">Kelas 26 B</button>
-      <button type="button" class="class-choice-btn" onclick="chooseClass('25 A')">Kelas 25 A</button>
-      <button type="button" class="class-choice-btn" onclick="chooseClass('25 B')">Kelas 25 B</button>
+      <button type="button" class="class-choice-btn" data-class="26 A" onclick="chooseClass('26 A')">Kelas 26 A</button>
+      <button type="button" class="class-choice-btn" data-class="26 B" onclick="chooseClass('26 B')">Kelas 26 B</button>
+      <button type="button" class="class-choice-btn" data-class="25 A" onclick="chooseClass('25 A')">Kelas 25 A</button>
+      <button type="button" class="class-choice-btn" data-class="25 B" onclick="chooseClass('25 B')">Kelas 25 B</button>
     </div>
     <button type="button" id="allClassesChoice" class="btn soft block" style="display:none;margin-top:10px" onclick="chooseClass('Semua Kelas')">Lihat Semua Kelas (Admin)</button>
     <div class="class-picker-note">Pilihan kelas disimpan di browser/perangkat ini. Mahasiswa tetap bisa mengakses website tanpa membuat akun atau login.</div>
@@ -2630,6 +2630,7 @@ body.admin .nav button.admin-only { display: flex; }
 const S={
   role:null,
   user:null,
+  admin:null,
   courses:[],
   selectedCourse:null,
   materials:[],
@@ -2647,28 +2648,60 @@ let activeClass = (() => {
   const saved = localStorage.getItem(ACTIVE_CLASS_KEY) || '';
   return PROMED_CLASSES.includes(saved) ? saved : '';
 })();
+function isClassAdmin() {
+  return S.role === 'admin' && S.admin?.admin_role === 'class_admin';
+}
+function canSelectAllClasses() {
+  // Admin Key lama tetap mempertahankan perilaku sebelum multi-admin.
+  return S.role === 'admin' && !isClassAdmin();
+}
 function updateActiveClassButton() {
   const button = $('activeClassBtn');
   if (!button) return;
+  if (isClassAdmin()) {
+    activeClass = S.admin.class_name;
+    button.textContent = `Kelas ${activeClass}`;
+    button.disabled = true;
+    button.title = 'Admin Kelas hanya dapat mengelola kelas yang ditugaskan.';
+    return;
+  }
+  button.disabled = false;
+  button.title = '';
   button.textContent = activeClass ? `Kelas ${activeClass}` : (S.role === 'admin' ? 'Semua Kelas' : 'Pilih Kelas');
 }
 function openClassPicker() {
+  const classAdmin = isClassAdmin();
+  const assignedClass = classAdmin ? S.admin.class_name : '';
   const allButton = $('allClassesChoice');
-  if (allButton) allButton.style.display = S.role === 'admin' ? 'block' : 'none';
-  $('classPickerDescription').textContent = S.role === 'admin'
-    ? 'Pilih kelas untuk melihat konten tertentu, atau tampilkan semua kelas untuk mengelola seluruh konten.'
-    : 'Pilih kelas agar materi, kuis, tugas, template, dan pengumuman yang tampil sesuai kelasmu.';
+  if (allButton) allButton.style.display = canSelectAllClasses() ? 'block' : 'none';
+
+  document.querySelectorAll('.class-choice-btn').forEach(button => {
+    const allowed = !classAdmin || button.dataset.class === assignedClass;
+    button.style.display = allowed ? '' : 'none';
+    button.disabled = !allowed;
+  });
+
+  $('classPickerDescription').textContent = classAdmin
+    ? `Akun Admin Kelas ini hanya dapat mengakses kelas ${assignedClass}.`
+    : canSelectAllClasses()
+      ? 'Pilih kelas untuk melihat konten tertentu, atau tampilkan semua kelas untuk mengelola seluruh konten.'
+      : 'Pilih kelas agar materi, kuis, tugas, template, dan pengumuman yang tampil sesuai kelasmu.';
   $('classPickerModal').classList.add('show');
 }
 function closeClassPicker() {
   $('classPickerModal').classList.remove('show');
 }
 function classPickerOutside(event) {
-  if (event.target === $('classPickerModal') && (activeClass || S.role === 'admin')) closeClassPicker();
+  if (event.target === $('classPickerModal') && (activeClass || canSelectAllClasses())) closeClassPicker();
 }
 async function chooseClass(value) {
-  if (value === 'Semua Kelas') {
-    if (S.role !== 'admin') return;
+  if (isClassAdmin()) {
+    const assignedClass = S.admin.class_name;
+    if (value !== assignedClass) return;
+    activeClass = assignedClass;
+    localStorage.setItem(ACTIVE_CLASS_KEY, assignedClass);
+  } else if (value === 'Semua Kelas') {
+    if (!canSelectAllClasses()) return;
     activeClass = '';
     localStorage.removeItem(ACTIVE_CLASS_KEY);
   } else {
@@ -2683,13 +2716,19 @@ async function chooseClass(value) {
   await loadAll();
 }
 function classQueryString() {
+  if (isClassAdmin()) {
+    return `?class=${encodeURIComponent(S.admin.class_name)}`;
+  }
   if (activeClass) return `?class=${encodeURIComponent(activeClass)}`;
   return S.role === 'admin' ? '?class=Semua%20Kelas' : '';
 }
 function classScopeField(id, selectedValue) {
-  const selected = selectedValue || activeClass || 'Semua Kelas';
-  const values = ['Semua Kelas', ...PROMED_CLASSES];
-  return `<div class="field class-scope-field"><label for="${id}">Tampilkan untuk kelas</label><select id="${id}">${values.map(value => `<option value="${value}" ${selected === value ? 'selected' : ''}>${value === 'Semua Kelas' ? 'Semua Kelas' : `Kelas ${value}`}</option>`).join('')}</select></div>`;
+  const classAdmin = isClassAdmin();
+  const assignedClass = classAdmin ? S.admin.class_name : '';
+  const selected = classAdmin ? assignedClass : (selectedValue || activeClass || 'Semua Kelas');
+  const values = classAdmin ? [assignedClass] : ['Semua Kelas', ...PROMED_CLASSES];
+  const disabled = classAdmin ? 'disabled aria-disabled="true"' : '';
+  return `<div class="field class-scope-field"><label for="${id}">Tampilkan untuk kelas</label><select id="${id}" ${disabled}>${values.map(value => `<option value="${value}" ${selected === value ? 'selected' : ''}>${value === 'Semua Kelas' ? 'Semua Kelas' : `Kelas ${value}`}</option>`).join('')}</select></div>`;
 }
 const $ = id => document.getElementById(String(id).replace(/^#/, ''));
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
@@ -2916,6 +2955,7 @@ async function boot() {
     if (mustChangePassword) {
       S.role = 'public';
       S.user = null;
+      S.admin = null;
 
       $('adminLoginModal').classList.add('show');
       $('adminSetupPanel').style.display = 'none';
@@ -2930,8 +2970,19 @@ async function boot() {
       ? 'admin'
       : 'public';
 
+    S.admin = S.role === 'admin' ? (session.admin || null) : null;
+
+    if (isClassAdmin()) {
+      const assignedClass = String(S.admin.class_name || '');
+      if (!PROMED_CLASSES.includes(assignedClass)) {
+        throw new Error('Kelas pada akun Admin Kelas tidak valid. Hubungi Super Admin.');
+      }
+      activeClass = assignedClass;
+      localStorage.setItem(ACTIVE_CLASS_KEY, assignedClass);
+    }
+
     S.user = S.role === 'admin'
-      ? { name: 'Administrator' }
+      ? { name: S.admin?.display_name || 'Administrator' }
       : null;
 
     await bootApp();
@@ -2941,34 +2992,43 @@ async function boot() {
 
     S.role = 'public';
     S.user = null;
+    S.admin = null;
 
     await bootApp();
   }
 }
-
 async function bootApp() {
+  const adminSession = S.role === 'admin';
   $('app').style.display = 'flex';
-  document.body.classList.toggle('admin', S.role === 'admin');
-  $('userName').textContent = S.role === 'admin' ? 'Administrator' : 'Mahasiswa ProMed';
-  $('userMeta').textContent = S.role === 'admin' ? 'Admin Panel' : 'Akses informasi perkuliahan';
-  $('avatar').textContent = S.role === 'admin' ? 'AD' : 'PM';
-  $('adminAccessBtn').style.display = S.role === 'admin' ? 'none' : 'inline-flex';
-  $('adminLogoutBtn').style.display = S.role === 'admin' ? 'inline-flex' : 'none';
+  document.body.classList.toggle('admin', adminSession);
+  $('userName').textContent = adminSession
+    ? (S.admin?.display_name || 'Administrator')
+    : 'Mahasiswa ProMed';
+  $('userMeta').textContent = !adminSession
+    ? 'Akses informasi perkuliahan'
+    : isClassAdmin()
+      ? `Admin Kelas • Kelas ${S.admin.class_name}`
+      : S.admin?.admin_role === 'super_admin'
+        ? 'Super Admin'
+        : 'Admin Panel';
+  $('avatar').textContent = adminSession ? 'AD' : 'PM';
+  $('adminAccessBtn').style.display = adminSession ? 'none' : 'inline-flex';
+  $('adminLogoutBtn').style.display = adminSession ? 'inline-flex' : 'none';
   const adminNav = document.querySelector('[data-view="admin"]');
-  if (adminNav) adminNav.style.display = S.role === 'admin' ? 'flex' : 'none';
+  if (adminNav) adminNav.style.display = adminSession ? 'flex' : 'none';
 
   updateActiveClassButton();
-  if (S.role === 'admin') await adminRefresh();
+  if (adminSession) await adminRefresh();
   await loadAll();
   showView('dashboard');
-  if (S.role !== 'admin' && !activeClass) openClassPicker();
+  if (!adminSession && !activeClass) openClassPicker();
 }
-
 async function logoutAdmin() {
   try { await api('/api/admin/logout', { method: 'POST' }); } catch (error) { console.warn(error); }
   sessionStorage.removeItem('promed_admin_token');
   S.role = 'public';
   S.user = null;
+  S.admin = null;
   document.body.classList.remove('admin');
   await bootApp();
 }
@@ -3960,7 +4020,7 @@ async function adminRefresh() {
   if (S.role !== 'admin') return;
   try {
     const [summary, courses, announcements] = await Promise.all([
-      api('/api/admin/summary'),
+      api(`/api/admin/summary${classQueryString()}`),
       api(`/api/admin/courses${classQueryString()}`),
       api(`/api/admin/announcements${classQueryString()}`)
     ]);
