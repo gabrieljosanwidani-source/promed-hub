@@ -1555,22 +1555,51 @@ async function updateSettings(env, request) {
   return getAdminSummary(env,request);
 }
 async function getAdminSummary(env, request) {
-  if (!(await isAdmin(request, env))) return json({message:'Belum login admin.'},401);
-  const [courses, materials, quizzes, assignments, templates, announcements] = await Promise.all([
-    env.DB.prepare("SELECT COUNT(*) AS c FROM pm_courses WHERE status='active'").first(),
-    env.DB.prepare("SELECT COUNT(*) AS c FROM pm_materials WHERE status='published'").first(),
-    env.DB.prepare("SELECT COUNT(*) AS c FROM pm_quizzes WHERE status='published'").first(),
-    env.DB.prepare("SELECT COUNT(*) AS c FROM pm_assignments WHERE status='active'").first(),
-    env.DB.prepare("SELECT COUNT(*) AS c FROM pm_templates WHERE status='published'").first(),
-    env.DB.prepare("SELECT COUNT(*) AS c FROM pm_announcements WHERE status='published'").first()
-  ]);
+  if (!(await isAdmin(request, env))) {
+    return json({ message: 'Belum login admin.' }, 401);
+  }
+
+  // Samakan cakupan ringkasan dengan daftar konten. Untuk Admin Kelas,
+  // hitungan hanya mencakup kelas penugasannya dan konten bersama.
+  const classFilter = await getClassFilter(request, env);
+  if (classFilter === '__INVALID__') {
+    return json({ message: 'Kelas tidak valid.' }, 400);
+  }
+
+  const countContent = async (table, type, status) => {
+    const scope = classFilter === null
+      ? ''
+      : classScopeSql(type, 'c', classFilter);
+    const statement = env.DB.prepare(
+      `SELECT COUNT(*) AS c FROM ${table} c WHERE c.status=?${scope}`
+    );
+    const values = [status];
+
+    if (classFilter !== null && classFilter !== '__NO_CLASS__') {
+      values.push(classFilter);
+    }
+
+    const row = await statement.bind(...values).first();
+    return Number(row?.c || 0);
+  };
+
+  const [courses, materials, quizzes, assignments, templates, announcements] =
+    await Promise.all([
+      countContent('pm_courses', 'course', 'active'),
+      countContent('pm_materials', 'material', 'published'),
+      countContent('pm_quizzes', 'quiz', 'published'),
+      countContent('pm_assignments', 'assignment', 'active'),
+      countContent('pm_templates', 'template', 'published'),
+      countContent('pm_announcements', 'announcement', 'published')
+    ]);
+
   return json({
-    courses: Number(courses?.c || 0),
-    materials: Number(materials?.c || 0),
-    quizzes: Number(quizzes?.c || 0),
-    assignments: Number(assignments?.c || 0),
-    templates: Number(templates?.c || 0),
-    announcements: Number(announcements?.c || 0)
+    courses,
+    materials,
+    quizzes,
+    assignments,
+    templates,
+    announcements
   });
 }
 
@@ -1633,8 +1662,10 @@ async function authorizeAdminRequest(request, env, path) {
 
   const assignedClass = account.class_name;
 
-  // Admin Kelas hanya dapat membuka daftar konten kelasnya sendiri.
+  // Admin Kelas dapat membaca ringkasan yang dibatasi ke kelasnya,
+  // serta daftar konten untuk kelas yang menjadi tanggung jawabnya.
   if (method === 'GET' && [
+    '/api/admin/summary',
     '/api/admin/courses',
     '/api/admin/announcements'
   ].includes(path)) {
