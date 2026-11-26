@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "promed-hub-staging",
+  "name": "promed-hub",
   "main": "worker.js",
   "compatibility_date": "2026-10-01",
   "assets": {
@@ -12,8 +12,8 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "promed-hub-staging",
-      "database_id": "051946ea-2fe3-4769-8a90-257ec1d7f68c"
+      "database_name": "kuis-database",
+      "database_id": "7b8739bc-286a-480c-8166-75c6491e2864"
     }
   ]
 }

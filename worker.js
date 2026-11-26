@@ -2408,7 +2408,7 @@ async function serveFile(env, request, type, id) {
       headers: {
         'Content-Type': row.content_type || 'text/html; charset=UTF-8',
         'Content-Disposition': `inline; filename="${safeName(row.file_name)}"`,
-        'Cache-Control': 'public, max-age=300',
+        'Cache-Control': 'private, no-store',
         'X-Content-Type-Options': 'nosniff'
       }
     });
@@ -2420,7 +2420,7 @@ async function serveFile(env, request, type, id) {
     headers: {
       'Content-Type': row.content_type || 'application/octet-stream',
       'Content-Disposition': `inline; filename="${safeName(row.file_name)}"`,
-      'Cache-Control': 'public, max-age=300',
+      'Cache-Control': 'private, no-store',
       'X-Content-Type-Options': 'nosniff'
     }
   });
