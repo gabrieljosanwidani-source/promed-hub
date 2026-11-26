@@ -2141,9 +2141,9 @@ body.admin .nav button.admin-only { display: flex; }
     <span>Tugas</span>
   </button>
 
-  
 
-  
+
+
 
   <button class="admin-only" data-view="admin">
     <span class="nav-icon">
@@ -2158,7 +2158,7 @@ body.admin .nav button.admin-only { display: flex; }
     <div class="sidefoot">Platform pembelajaran ProMed<div><strong>Josan x ProMed</strong></div></div>
   </aside>
   <main class="main">
-    
+
 <header class="top">
   <button class="mobile" onclick="toggleSide()">☰</button>
 
@@ -2221,7 +2221,7 @@ body.admin .nav button.admin-only { display: flex; }
     </div>
   </div>
 </div>
-      
+
 <div class="grid stats">
   <div class="card stat">
     <div class="ico">
@@ -2454,7 +2454,7 @@ body.admin .nav button.admin-only { display: flex; }
 </section>
     <section id="calendar" class="view content"><div class="section-head"><div><h3>Kalender Akademik</h3><p>Ringkasan agenda yang diambil dari data tugas/kegiatan ProMed.</p></div></div><div class="grid cols3" id="calendarCards"></div></section>
 
-    
+
     <section id="admin" class="view content">
   <div class="page-hero admin-hero">
     <div class="page-hero-copy">
@@ -2465,7 +2465,87 @@ body.admin .nav button.admin-only { display: flex; }
     <button class="btn admin-refresh-btn" onclick="refreshAdminData()">↻ Refresh Data</button>
   </div>
 
-  <div class="page-section-head admin-overview-heading">
+
+<div class="card" id="classAccessManagementCard"
+     style="margin-top:15px;display:none">
+  <div class="section-head">
+    <div>
+      <h3>Manajemen Kode Akses Kelas</h3>
+      <p>Buat, perbarui, dan atur masa berlaku kode setiap kelas.</p>
+    </div>
+    <button class="btn soft" onclick="loadClassAccessCodes()">
+      ↻ Refresh Kode
+    </button>
+  </div>
+
+  <div class="note" style="margin-bottom:14px">
+    Kode akses hanya dapat dikelola oleh Super Admin.
+    Kode asli tidak ditampilkan kembali setelah disimpan.
+  </div>
+
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Kelas</th>
+          <th>Status</th>
+          <th>Masa Berlaku</th>
+          <th>Sesi Aktif</th>
+          <th>Aksi</th>
+        </tr>
+      </thead>
+      <tbody id="classAccessCodesTable">
+        <tr>
+          <td colspan="5" class="empty">
+            Memuat kode akses kelas...
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+
+<div class="card" id="classAccessManagementCard"
+     style="margin-top:15px;display:none">
+  <div class="section-head">
+    <div>
+      <h3>Manajemen Kode Akses Kelas</h3>
+      <p>Buat, perbarui, dan atur masa berlaku kode setiap kelas.</p>
+    </div>
+    <button class="btn soft" onclick="loadClassAccessCodes()">
+      ↻ Refresh Kode
+    </button>
+  </div>
+
+  <div class="note" style="margin-bottom:14px">
+    Kode akses hanya dapat dikelola oleh Super Admin.
+    Kode asli tidak ditampilkan kembali setelah disimpan.
+  </div>
+
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Kelas</th>
+          <th>Status</th>
+          <th>Masa Berlaku</th>
+          <th>Sesi Aktif</th>
+          <th>Aksi</th>
+        </tr>
+      </thead>
+      <tbody id="classAccessCodesTable">
+        <tr>
+          <td colspan="5" class="empty">
+            Memuat kode akses kelas...
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="page-section-head admin-overview-heading">
     <div class="dashboard-section-heading">
       <span class="dashboard-section-icon page-heading-icon"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="m7 14 4-4 3 3 6-7"/></svg></span>
       <div><h3>Ringkasan Konten</h3><p>Jumlah konten yang sedang dipublikasikan.</p></div>
@@ -2519,7 +2599,7 @@ body.admin .nav button.admin-only { display: flex; }
 </section>
 
     <section id="searchResults" class="view content"><div class="section-head"><div><h3>Hasil Pencarian</h3><p id="searchLabel">-</p></div></div><div class="card" id="searchBox"></div></section>
-  
+
 </main>
 </div>
 
@@ -2535,6 +2615,56 @@ body.admin .nav button.admin-only { display: flex; }
     </div>
     <button type="button" id="allClassesChoice" class="btn soft block" style="display:none;margin-top:10px" onclick="chooseClass('Semua Kelas')">Lihat Semua Kelas (Admin)</button>
     <div class="class-picker-note">Pilihan kelas disimpan di browser/perangkat ini. Mahasiswa tetap bisa mengakses website tanpa membuat akun atau login.</div>
+  </div>
+</div>
+
+
+<div id="studentClassAccessModal" class="modalback">
+  <div class="modal" role="dialog"
+       aria-modal="true"
+       aria-labelledby="studentClassAccessTitle">
+
+    <h3 id="studentClassAccessTitle">
+      Aktivasi Akses Kelas
+    </h3>
+
+    <p>
+      Masukkan kode akses kelas yang diberikan
+      oleh pengelola ProMed Hub.
+    </p>
+
+    <form id="studentClassAccessForm"
+          onsubmit="activateStudentClass(event)">
+
+      <div class="field">
+        <label for="studentClassAccessCode">
+          Kode Akses Kelas
+        </label>
+        <input
+          id="studentClassAccessCode"
+          type="text"
+          minlength="8"
+          maxlength="100"
+          placeholder="Masukkan kode akses"
+          autocomplete="off"
+          required
+        >
+      </div>
+
+      <div id="studentClassAccessMessage"
+           aria-live="polite"></div>
+
+      <div class="modal-actions">
+        <button type="submit" class="btn primary">
+          Aktifkan Akses
+        </button>
+      </div>
+    </form>
+
+    <p style="font-size:11px;margin-top:12px">
+      Kode hanya diperlukan saat aktivasi pertama
+      pada browser atau perangkat ini.
+    </p>
   </div>
 </div>
 
@@ -2655,9 +2785,11 @@ function canSelectAllClasses() {
   // Admin Key lama tetap mempertahankan perilaku sebelum multi-admin.
   return S.role === 'admin' && !isClassAdmin();
 }
+
 function updateActiveClassButton() {
   const button = $('activeClassBtn');
   if (!button) return;
+
   if (isClassAdmin()) {
     activeClass = S.admin.class_name;
     button.textContent = `Kelas ${activeClass}`;
@@ -2665,11 +2797,30 @@ function updateActiveClassButton() {
     button.title = 'Admin Kelas hanya dapat mengelola kelas yang ditugaskan.';
     return;
   }
+
+  if (S.role !== 'admin') {
+    button.disabled = Boolean(activeClass);
+    button.textContent = activeClass
+      ? `Kelas ${activeClass}`
+      : 'Masukkan Kode Kelas';
+    button.title = activeClass
+      ? 'Kelas sudah terikat pada akses yang diverifikasi.'
+      : 'Masukkan kode akses kelas.';
+    return;
+  }
+
   button.disabled = false;
   button.title = '';
-  button.textContent = activeClass ? `Kelas ${activeClass}` : (S.role === 'admin' ? 'Semua Kelas' : 'Pilih Kelas');
+  button.textContent = activeClass
+    ? `Kelas ${activeClass}`
+    : 'Semua Kelas';
 }
+
 function openClassPicker() {
+  if (S.role !== 'admin') {
+  $('studentClassAccessModal').classList.add('show');
+  return;
+}
   const classAdmin = isClassAdmin();
   const assignedClass = classAdmin ? S.admin.class_name : '';
   const allButton = $('allClassesChoice');
@@ -2695,6 +2846,7 @@ function classPickerOutside(event) {
   if (event.target === $('classPickerModal') && (activeClass || canSelectAllClasses())) closeClassPicker();
 }
 async function chooseClass(value) {
+  if (S.role !== 'admin') return;
   if (isClassAdmin()) {
     const assignedClass = S.admin.class_name;
     if (value !== assignedClass) return;
@@ -2715,13 +2867,24 @@ async function chooseClass(value) {
   if (S.role === 'admin') await adminRefresh();
   await loadAll();
 }
+
 function classQueryString() {
   if (isClassAdmin()) {
     return `?class=${encodeURIComponent(S.admin.class_name)}`;
   }
-  if (activeClass) return `?class=${encodeURIComponent(activeClass)}`;
-  return S.role === 'admin' ? '?class=Semua%20Kelas' : '';
+
+  if (S.role === 'admin') {
+    if (activeClass) {
+      return `?class=${encodeURIComponent(activeClass)}`;
+    }
+
+    return '?class=Semua%20Kelas';
+  }
+
+  // Mahasiswa mendapatkan kelas dari sesi server, bukan URL.
+  return '';
 }
+
 function classScopeField(id, selectedValue) {
   const classAdmin = isClassAdmin();
   const assignedClass = classAdmin ? S.admin.class_name : '';
@@ -2943,6 +3106,299 @@ async function adminChangePassword(event) {
     button.disabled = false;
   }
 }
+
+function classAccessDate(value) {
+  if (!value) return 'Tidak dibatasi';
+
+  return new Date(value).toLocaleString('id-ID', {
+    dateStyle: 'medium',
+    timeStyle: 'short'
+  });
+}
+
+function classAccessLocalDate(value) {
+  if (!value) return '';
+
+  const date = new Date(value);
+  return new Date(
+    date.getTime() - date.getTimezoneOffset() * 60000
+  ).toISOString().slice(0, 16);
+}
+
+async function loadClassAccessCodes() {
+  if (S.admin?.admin_role !== 'super_admin') return;
+
+  const tbody = $('classAccessCodesTable');
+  tbody.innerHTML = `
+    <tr><td colspan="5" class="empty">Memuat kode akses...</td></tr>
+  `;
+
+  try {
+    const result = await api('/api/admin/class-access-codes');
+    const items = result.items || [];
+
+    tbody.innerHTML = items.map(item => {
+      let status = 'Belum dibuat';
+      let badge = '';
+
+      if (item.configured) {
+        status = item.is_active ? 'Aktif' : 'Nonaktif';
+        badge = item.is_active ? 'green' : 'orange';
+
+        if (item.is_active && item.starts_at &&
+            new Date(item.starts_at).getTime() > Date.now()) {
+          status = 'Terjadwal';
+          badge = 'blue';
+        } else if (item.is_active && item.expires_at &&
+            new Date(item.expires_at).getTime() <= Date.now()) {
+          status = 'Kedaluwarsa';
+          badge = 'orange';
+        }
+      }
+
+      const period = item.configured
+        ? `${classAccessDate(item.starts_at)}<br>Sampai: ${classAccessDate(item.expires_at)}`
+        : 'Belum diatur';
+
+      return `
+        <tr>
+          <td><strong>Kelas ${esc(item.class_name)}</strong></td>
+          <td><span class="badge ${badge}">${status}</span></td>
+          <td>${period}</td>
+          <td>${Number(item.active_sessions || 0)}</td>
+          <td>
+            <button class="btn primary"
+              onclick="openClassAccessCodeEditor('${esc(item.class_name)}')">
+              ${item.configured ? 'Ganti Kode' : 'Buat Kode'}
+            </button>
+
+            ${item.configured ? `
+              <button class="btn soft"
+                onclick="toggleClassAccessCode('${esc(item.class_name)}', ${item.is_active ? 0 : 1})">
+                ${item.is_active ? 'Nonaktifkan' : 'Aktifkan'}
+              </button>
+
+              <button class="btn danger"
+                onclick="deleteClassAccessCode('${esc(item.class_name)}')">
+                Hapus
+              </button>
+            ` : ''}
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+  } catch (error) {
+    tbody.innerHTML = `
+      <tr><td colspan="5" class="empty">
+        ${esc(error.message)}
+      </td></tr>
+    `;
+  }
+}
+
+function openClassAccessCodeEditor(className) {
+  if (S.admin?.admin_role !== 'super_admin') {
+    return alert('Hanya Super Admin yang dapat mengatur kode kelas.');
+  }
+
+  $('modalTitle').textContent = `Kode Akses Kelas ${className}`;
+  $('modalDesc').textContent =
+    'Masukkan kode baru dan tentukan masa berlakunya.';
+
+  $('modalBody').innerHTML = `
+    <div class="field">
+      <label>Kode akses baru</label>
+      <input
+        id="classAccessCodeInput"
+        type="text"
+        minlength="8"
+        maxlength="64"
+        placeholder="Contoh: PROMED26A-X729"
+        autocomplete="off"
+        required
+      >
+      <small>8–64 karakter, huruf kapital, angka, - atau _.</small>
+    </div>
+
+    <div class="field">
+      <label>Mulai berlaku (opsional)</label>
+      <input id="classAccessStartsAt" type="datetime-local">
+      <small>Kosongkan untuk langsung berlaku.</small>
+    </div>
+
+    <div class="field">
+      <label>Berakhir (opsional)</label>
+      <input id="classAccessExpiresAt" type="datetime-local">
+      <small>Kosongkan jika tidak ada batas waktu.</small>
+    </div>
+
+    <label style="display:flex;gap:8px;align-items:flex-start;font-size:12px;margin-top:12px">
+      <input type="checkbox" id="classAccessRevokeSessions">
+      Cabut seluruh sesi mahasiswa lama untuk kelas ini.
+    </label>
+
+    <div class="note" style="margin-top:12px">
+      Kode asli tidak dapat dilihat kembali setelah disimpan.
+      Simpan kode baru dan bagikan kepada mahasiswa kelas tersebut.
+    </div>
+  `;
+
+  $('modalSave').textContent = 'Simpan Kode';
+  $('modalSave').onclick = () => saveClassAccessCode(className);
+
+  openModal();
+}
+
+async function saveClassAccessCode(className) {
+  const code = $('classAccessCodeInput').value.trim().toUpperCase();
+  const startsAt = $('classAccessStartsAt').value;
+  const expiresAt = $('classAccessExpiresAt').value;
+
+  if (!/^[A-Z0-9_-]{8,64}$/.test(code)) {
+    return alert('Kode harus terdiri dari 8–64 karakter yang valid.');
+  }
+
+  if (startsAt && expiresAt &&
+      new Date(expiresAt).getTime() <= new Date(startsAt).getTime()) {
+    return alert('Waktu berakhir harus setelah waktu mulai.');
+  }
+
+  const data = {
+    class_name: className,
+    code,
+    starts_at: startsAt || null,
+    expires_at: expiresAt || null,
+    revoke_sessions: $('classAccessRevokeSessions').checked
+  };
+
+  try {
+    const result = await api('/api/admin/class-access-codes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+
+    closeModal();
+    alert(result.message);
+    await loadClassAccessCodes();
+
+  } catch (error) {
+    alert(error.message || 'Gagal menyimpan kode kelas.');
+  }
+}
+
+async function toggleClassAccessCode(className, active) {
+  if (S.admin?.admin_role !== 'super_admin') return;
+
+  const action = active ? 'mengaktifkan' : 'menonaktifkan';
+
+  if (!confirm(`Yakin ingin ${action} kode kelas ${className}?`)) return;
+
+  const revokeSessions = !active
+    ? confirm('Apakah seluruh sesi mahasiswa kelas ini juga ingin dicabut?')
+    : false;
+
+  try {
+    const result = await api('/api/admin/class-access-codes/status', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        class_name: className,
+        is_active: Boolean(active),
+        revoke_sessions: revokeSessions
+      })
+    });
+
+    alert(result.message);
+    await loadClassAccessCodes();
+
+  } catch (error) {
+    alert(error.message);
+  }
+}
+
+async function deleteClassAccessCode(className) {
+  if (S.admin?.admin_role !== 'super_admin') return;
+
+  if (!confirm(`Hapus kode akses kelas ${className}?`)) return;
+
+  const revokeSessions = confirm(
+    'Apakah sesi akses mahasiswa kelas ini juga ingin dicabut?'
+  );
+
+  try {
+    const result = await api('/api/admin/class-access-codes', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        class_name: className,
+        revoke_sessions: revokeSessions
+      })
+    });
+
+    alert(result.message);
+    await loadClassAccessCodes();
+
+  } catch (error) {
+    alert(error.message);
+  }
+}
+
+
+async function activateStudentClass(event) {
+  event.preventDefault();
+
+  const input = $('studentClassAccessCode');
+  const message = $('studentClassAccessMessage');
+  const button = $('studentClassAccessForm').querySelector(
+    'button[type="submit"]'
+  );
+
+  const code = input.value.trim();
+
+  if (!code) {
+    message.innerHTML = '<div class="note">Masukkan kode akses kelas.</div>';
+    return;
+  }
+
+  button.disabled = true;
+  button.textContent = 'Memeriksa kode...';
+  message.innerHTML = '';
+
+  try {
+    const result = await api('/api/class-access/activate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code })
+    });
+
+    if (!result.authenticated ||
+        !PROMED_CLASSES.includes(result.class_name)) {
+      throw new Error('Kode akses tidak berhasil diverifikasi.');
+    }
+
+    activeClass = result.class_name;
+    localStorage.setItem(ACTIVE_CLASS_KEY, activeClass);
+
+    input.value = '';
+    message.innerHTML =
+      `<div class="note">${esc(result.message)}</div>`;
+
+    $('studentClassAccessModal').classList.remove('show');
+
+    updateActiveClassButton();
+    await loadAll();
+
+  } catch (error) {
+    message.innerHTML =
+      `<div class="note">${esc(error.message)}</div>`;
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Aktifkan Akses';
+  }
+}
+
 async function boot() {
   try {
     const session = await api('/api/me');
@@ -2999,6 +3455,28 @@ async function boot() {
 }
 async function bootApp() {
   const adminSession = S.role === 'admin';
+
+let studentClassAccess = null;
+
+if (!adminSession) {
+  try {
+    studentClassAccess = await api('/api/class-access');
+  } catch (error) {
+    console.error('Gagal memeriksa sesi akses kelas:', error);
+  }
+
+  if (
+    studentClassAccess?.authenticated &&
+    PROMED_CLASSES.includes(studentClassAccess.class_name)
+  ) {
+    activeClass = studentClassAccess.class_name;
+    localStorage.setItem(ACTIVE_CLASS_KEY, activeClass);
+  } else {
+    activeClass = '';
+    localStorage.removeItem(ACTIVE_CLASS_KEY);
+  }
+}
+
   $('app').style.display = 'flex';
   document.body.classList.toggle('admin', adminSession);
   $('userName').textContent = adminSession
@@ -3016,12 +3494,26 @@ async function bootApp() {
   $('adminLogoutBtn').style.display = adminSession ? 'inline-flex' : 'none';
   const adminNav = document.querySelector('[data-view="admin"]');
   if (adminNav) adminNav.style.display = adminSession ? 'flex' : 'none';
+  const classAccessCard = $('classAccessManagementCard');
+const superAdminSession =
+  adminSession && S.admin?.admin_role === 'super_admin';
+
+if (classAccessCard) {
+  classAccessCard.style.display = superAdminSession ? 'block' : 'none';
+}
+
+if (superAdminSession) {
+  await loadClassAccessCodes();
+}
 
   updateActiveClassButton();
   if (adminSession) await adminRefresh();
   await loadAll();
   showView('dashboard');
-  if (!adminSession && !activeClass) openClassPicker();
+
+if (!adminSession && !activeClass) {
+  $('studentClassAccessModal').classList.add('show');
+}
 }
 async function logoutAdmin() {
   try { await api('/api/admin/logout', { method: 'POST' }); } catch (error) { console.warn(error); }
@@ -3074,9 +3566,11 @@ document.querySelectorAll('.nav button').forEach(button => {
 function toggleSide() { $('sidebar').classList.toggle('open'); }
 function openNotifications() {
   showView('dashboard');
-  setTimeout(() => $('announcementList')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150);
+  setTimeout(() => $('announcementList')?.scrollIntoView({
+    behavior: 'smooth',
+    block: 'center'
+  }), 150);
 }
-
 const TASK_CHECKS_KEY = 'promed_hub_task_checks_v1';
 function readTaskChecks() {
   try {
@@ -3187,7 +3681,7 @@ function renderAdminAnnouncements() {
         </tr>
       `).join('')
     : '<tr><td colspan="7" class="empty">Belum ada pengumuman.</td></tr>';
-} 
+}
   function renderCourses() {
   const searchEl = $('courseSearch');
   const semesterEl = $('courseSemester');
@@ -3767,7 +4261,7 @@ async function toggleCourseStatus(id) {
     alert(error.message || 'Gagal mengubah status mata kuliah.');
   }
 }
- function openCourseModal(id = null) { 
+ function openCourseModal(id = null) {
   const course = id
     ? S.adminCourses.find(x => Number(x.id) === Number(id))
     : null;
@@ -4010,7 +4504,7 @@ async function deleteAnnouncement(id) {
     alert(error.message || 'Gagal menghapus pengumuman.');
   }
 }
-  
+
 async function refreshAdminData() {
   await adminRefresh();
   await loadAll();

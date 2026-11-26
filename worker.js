@@ -1,7 +1,8 @@
 const COOKIE = {
   session: 'pm_session',
   device: 'pm_device',
-  admin: 'pm_admin'
+  admin: 'pm_admin',
+  classAccess: 'pm_class_access'
 };
 
 const now = () => new Date().toISOString();
@@ -49,6 +50,221 @@ async function randomToken(bytes = 32) {
   return [...a].map(x => x.toString(16).padStart(2, '0')).join('');
 }
 
+function classAccessCookieHeader(request, token, maxAge) {
+  const secure = new URL(request.url).protocol === 'https:'
+    ? '; Secure'
+    : '';
+
+  return `${COOKIE.classAccess}=${encodeURIComponent(token)}; Max-Age=${maxAge}; Path=/; HttpOnly; SameSite=Lax${secure}`;
+}
+
+function clearClassAccessCookie(request) {
+  const secure = new URL(request.url).protocol === 'https:'
+    ? '; Secure'
+    : '';
+
+  return `${COOKIE.classAccess}=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax${secure}`;
+}
+
+async function getStudentClassAccess(request, env) {
+  const token = cookieValue(request, COOKIE.classAccess);
+  if (!token) return null;
+
+  const tokenHash = await sha256(token);
+
+  const row = await env.DB.prepare(`
+    SELECT id, class_name, expires_at
+    FROM pm_class_access_sessions
+    WHERE token_hash = ? AND revoked_at IS NULL
+    LIMIT 1
+  `).bind(tokenHash).first();
+
+  if (!row) return null;
+
+  if (
+    row.expires_at &&
+    new Date(row.expires_at).getTime() <= Date.now()
+  ) {
+    return null;
+  }
+
+  return row;
+}
+
+async function recordClassCodeFailure(env, ipHash) {
+  const timestamp = Date.now();
+  const timestampIso = new Date(timestamp).toISOString();
+
+  const existing = await env.DB.prepare(`
+    SELECT failure_count, window_started_at, blocked_until
+    FROM pm_class_access_attempts
+    WHERE ip_hash = ?
+  `).bind(ipHash).first();
+
+  if (
+    existing?.blocked_until &&
+    new Date(existing.blocked_until).getTime() > timestamp
+  ) {
+    return true;
+  }
+
+  const windowStart = existing
+    ? new Date(existing.window_started_at).getTime()
+    : 0;
+
+  if (!existing || timestamp - windowStart >= 15 * 60 * 1000) {
+    await env.DB.prepare(`
+      INSERT INTO pm_class_access_attempts
+        (ip_hash, failure_count, window_started_at, blocked_until)
+      VALUES (?, 1, ?, NULL)
+      ON CONFLICT(ip_hash) DO UPDATE SET
+        failure_count = 1,
+        window_started_at = excluded.window_started_at,
+        blocked_until = NULL
+    `).bind(ipHash, timestampIso).run();
+
+    return false;
+  }
+
+  const nextCount = Number(existing.failure_count || 0) + 1;
+  const blockedUntil = nextCount >= 5
+    ? new Date(timestamp + 15 * 60 * 1000).toISOString()
+    : null;
+
+  await env.DB.prepare(`
+    UPDATE pm_class_access_attempts
+    SET failure_count = ?, blocked_until = ?
+    WHERE ip_hash = ?
+  `).bind(nextCount, blockedUntil, ipHash).run();
+
+  return nextCount >= 5;
+}
+
+async function activateStudentClassAccess(request, env) {
+  const current = await getStudentClassAccess(request, env);
+
+  if (current) {
+    return json({
+      authenticated: true,
+      class_name: current.class_name,
+      message: 'Akses kelas sudah aktif.'
+    });
+  }
+
+  const ipAddress = request.headers.get('CF-Connecting-IP') || 'local-development';
+  const ipHash = await sha256(ipAddress);
+
+  const attempt = await env.DB.prepare(`
+    SELECT blocked_until
+    FROM pm_class_access_attempts
+    WHERE ip_hash = ?
+  `).bind(ipHash).first();
+
+  if (
+    attempt?.blocked_until &&
+    new Date(attempt.blocked_until).getTime() > Date.now()
+  ) {
+    return json({
+      message: 'Terlalu banyak percobaan. Coba lagi 15 menit kemudian.'
+    }, 429);
+  }
+
+  const data = await request.json().catch(() => ({}));
+  const code = String(data.code || '').normalize('NFKC').trim().toUpperCase();
+
+  if (code.length < 8 || code.length > 100) {
+    const blocked = await recordClassCodeFailure(env, ipHash);
+
+    return json({
+      message: blocked
+        ? 'Terlalu banyak percobaan. Coba lagi 15 menit kemudian.'
+        : 'Kode akses tidak valid atau sudah tidak berlaku.'
+    }, blocked ? 429 : 401);
+  }
+
+  const codeHash = await sha256(code);
+
+  const accessCode = await env.DB.prepare(`
+    SELECT class_name, starts_at, expires_at
+    FROM pm_class_access_codes
+    WHERE code_hash = ? AND is_active = 1
+    LIMIT 1
+  `).bind(codeHash).first();
+
+  const currentTime = Date.now();
+
+  const notStarted = accessCode?.starts_at &&
+    new Date(accessCode.starts_at).getTime() > currentTime;
+
+  const expired = accessCode?.expires_at &&
+    new Date(accessCode.expires_at).getTime() <= currentTime;
+
+  if (!accessCode || notStarted || expired) {
+    const blocked = await recordClassCodeFailure(env, ipHash);
+
+    return json({
+      message: blocked
+        ? 'Terlalu banyak percobaan. Coba lagi 15 menit kemudian.'
+        : 'Kode akses tidak valid atau sudah tidak berlaku.'
+    }, blocked ? 429 : 401);
+  }
+
+  await env.DB.prepare(`
+    DELETE FROM pm_class_access_attempts WHERE ip_hash = ?
+  `).bind(ipHash).run();
+
+  const sessionToken = await randomToken(32);
+  const tokenHash = await sha256(sessionToken);
+  const expires = new Date(
+    Date.now() + maxAgeDays(365) * 1000
+  ).toISOString();
+
+  await env.DB.prepare(`
+    INSERT INTO pm_class_access_sessions
+      (class_name, token_hash, created_at, expires_at)
+    VALUES (?, ?, ?, ?)
+  `).bind(
+    accessCode.class_name,
+    tokenHash,
+    now(),
+    expires
+  ).run();
+
+  return json({
+    authenticated: true,
+    class_name: accessCode.class_name,
+    message: `Akses kelas ${accessCode.class_name} berhasil diaktifkan.`
+  }, 200, {
+    'Set-Cookie': classAccessCookieHeader(
+      request,
+      sessionToken,
+      maxAgeDays(365)
+    )
+  });
+}
+
+async function logoutStudentClassAccess(request, env) {
+  const token = cookieValue(request, COOKIE.classAccess);
+
+  if (token) {
+    const tokenHash = await sha256(token);
+
+    await env.DB.prepare(`
+      UPDATE pm_class_access_sessions
+      SET revoked_at = ?
+      WHERE token_hash = ? AND revoked_at IS NULL
+    `).bind(now(), tokenHash).run();
+  }
+
+  return json({
+    authenticated: false,
+    message: 'Akses kelas telah dinonaktifkan.'
+  }, 200, {
+    'Set-Cookie': clearClassAccessCookie(request)
+  });
+}
+
+
   async function passwordHash(value, salt, iterations = 310000) {
   const key = await crypto.subtle.importKey(
     'raw',
@@ -91,36 +307,59 @@ function classScopeSql(type, alias, filter) {
   return ` AND (${noMapping} OR EXISTS (SELECT 1 FROM pm_class_content cc WHERE cc.content_type='${type}' AND cc.content_id=${alias}.id AND cc.class_name=?))`;
 }
 
+
 async function getClassFilter(request, env) {
   const requested = new URL(request.url).searchParams.get('class');
   const account = await getAdminAccount(request, env);
 
+  // Super Admin dapat melihat seluruh kelas.
   if (account?.role === 'super_admin') {
     if (!requested || requested === 'Semua Kelas') return null;
     return PROMED_CLASSES.includes(requested) ? requested : '__INVALID__';
   }
 
+  // Admin Kelas hanya dapat melihat kelas penugasannya.
   if (account?.role === 'class_admin') {
     const assignedClass = account.class_name;
+
     if (!PROMED_CLASSES.includes(assignedClass)) return '__INVALID__';
+
     if (requested && requested !== 'Semua Kelas' && requested !== assignedClass) {
       return '__INVALID__';
     }
+
     return assignedClass;
   }
 
-  // Admin Key lama tetap berlaku hanya sebelum Super Admin pertama dibuat.
+  // Admin Key lama, hanya sebelum Super Admin dibuat.
   if (await isAdmin(request, env)) {
     if (!requested || requested === 'Semua Kelas') return null;
     return PROMED_CLASSES.includes(requested) ? requested : '__INVALID__';
   }
 
-  if (!requested || requested === 'Semua Kelas') return '__NO_CLASS__';
-  return PROMED_CLASSES.includes(requested) ? requested : '__INVALID__';
+  // Mahasiswa harus menggunakan sesi akses yang telah diverifikasi.
+  const studentAccess = await getStudentClassAccess(request, env);
+
+  if (!studentAccess) {
+    return '__NO_CLASS__';
+  }
+
+  const assignedClass = studentAccess.class_name;
+
+  if (!PROMED_CLASSES.includes(assignedClass)) {
+    return '__INVALID__';
+  }
+
+  // Mahasiswa tidak boleh mengganti kelas melalui URL.
+  if (requested && requested !== 'Semua Kelas' && requested !== assignedClass) {
+    return '__INVALID__';
+  }
+
+  return assignedClass;
 }
 
-async function setContentClass(env, type, id, className) {
-  const scope = String(className || 'Semua Kelas').trim();
+  async function setContentClass(env, type, id, className) {
+    const scope = String(className || 'Semua Kelas').trim();
   if (!CLASS_CONTENT_TYPES.includes(type) || !validClassName(scope)) {
     throw new Error('Pilihan kelas tidak valid.');
   }
@@ -131,55 +370,37 @@ async function setContentClass(env, type, id, className) {
   }
 }
 
+
 async function canViewClassContent(env, request, type, id) {
   const account = await getAdminAccount(request, env);
 
+  // Super Admin dapat melihat seluruh konten.
   if (account?.role === 'super_admin') return true;
 
   const row = await env.DB.prepare(
     'SELECT class_name FROM pm_class_content WHERE content_type=? AND content_id=?'
   ).bind(type, id).first();
 
+  // Admin Kelas hanya dapat membuka konten kelasnya.
   if (account?.role === 'class_admin') {
     if (!PROMED_CLASSES.includes(account.class_name)) return false;
     return !row || row.class_name === account.class_name;
   }
 
+  // Kompatibilitas Admin Key lama sebelum Super Admin dibuat.
   if (await isAdmin(request, env)) return true;
+
+  // Konten bersama (Semua Kelas) tetap dapat dilihat mahasiswa.
   if (!row) return true;
 
-  const requested = new URL(request.url).searchParams.get('class');
-  return PROMED_CLASSES.includes(requested) && row.class_name === requested;
+  // Konten khusus kelas wajib memiliki sesi akses yang valid.
+  const studentAccess = await getStudentClassAccess(request, env);
+
+  if (!studentAccess) return false;
+
+  return studentAccess.class_name === row.class_name;
 }
 
-
-function githubHeaders(env) {
-  return {
-    'Authorization': `Bearer ${env.GITHUB_TOKEN}`,
-    'Accept': 'application/vnd.github+json',
-    'X-GitHub-Api-Version': '2022-11-28',
-    'User-Agent': 'ProMed-Hub'
-  };
-}
-
-function githubPath(path) {
-  return path.split('/').map(encodeURIComponent).join('/');
-}
-
-function githubUrl(path) {
-  return `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${githubPath(path)}`;
-}
-
-function bytesToBase64(bytes) {
-  let binary = '';
-  const chunk = 0x8000;
-
-  for (let i = 0; i < bytes.length; i += chunk) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
-  }
-
-  return btoa(binary);
-}
 
 async function githubUpload(env, path, file, message) {
   if (!env.GITHUB_TOKEN) {
@@ -1745,6 +1966,252 @@ async function requireSuperAdmin(request, env) {
   return { account };
 }
 
+
+async function adminListClassAccessCodes(request, env) {
+  const auth = await requireSuperAdmin(request, env);
+  if (auth.error) return auth.error;
+
+  const result = await env.DB.prepare(`
+    SELECT
+      class_name,
+      starts_at,
+      expires_at,
+      is_active,
+      created_at,
+      updated_at,
+      (
+        SELECT COUNT(*)
+        FROM pm_class_access_sessions s
+        WHERE s.class_name = c.class_name
+          AND s.revoked_at IS NULL
+          AND (s.expires_at IS NULL OR s.expires_at > ?)
+      ) AS active_sessions
+    FROM pm_class_access_codes c
+  `).bind(now()).all();
+
+  const byClass = new Map(
+    (result.results || []).map(row => [row.class_name, row])
+  );
+
+  return json({
+    items: PROMED_CLASSES.map(className => {
+      const row = byClass.get(className);
+
+      return {
+        class_name: className,
+        configured: Boolean(row),
+        starts_at: row?.starts_at || null,
+        expires_at: row?.expires_at || null,
+        is_active: Number(row?.is_active || 0),
+        active_sessions: Number(row?.active_sessions || 0),
+        created_at: row?.created_at || null,
+        updated_at: row?.updated_at || null
+      };
+    })
+  });
+}
+
+async function adminUpsertClassAccessCode(request, env) {
+  const auth = await requireSuperAdmin(request, env);
+  if (auth.error) return auth.error;
+
+  const data = await request.json().catch(() => ({}));
+  const className = String(data.class_name || '').trim();
+  const code = String(data.code || '')
+    .normalize('NFKC')
+    .trim()
+    .toUpperCase();
+
+  if (!PROMED_CLASSES.includes(className)) {
+    return json({ message: 'Kelas tidak valid.' }, 400);
+  }
+
+  if (!/^[A-Z0-9_-]{8,64}$/.test(code)) {
+    return json({
+      message: 'Kode harus 8–64 karakter dan hanya boleh berisi huruf, angka, tanda hubung, atau garis bawah.'
+    }, 400);
+  }
+
+  let startsAt;
+  let expiresAt;
+
+  try {
+    startsAt = data.starts_at
+      ? new Date(data.starts_at).toISOString()
+      : null;
+
+    expiresAt = data.expires_at
+      ? new Date(data.expires_at).toISOString()
+      : null;
+  } catch {
+    return json({ message: 'Format tanggal tidak valid.' }, 400);
+  }
+
+  if (
+    startsAt &&
+    expiresAt &&
+    new Date(expiresAt).getTime() <= new Date(startsAt).getTime()
+  ) {
+    return json({
+      message: 'Waktu berakhir harus setelah waktu mulai.'
+    }, 400);
+  }
+
+  const timestamp = now();
+  const codeHash = await sha256(code);
+  const revokeSessions = data.revoke_sessions === true;
+
+  const statements = [
+    env.DB.prepare(`
+      INSERT INTO pm_class_access_codes (
+        class_name, code_hash, starts_at, expires_at,
+        is_active, created_at, updated_at, created_by, updated_by
+      )
+      VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?)
+      ON CONFLICT(class_name) DO UPDATE SET
+        code_hash = excluded.code_hash,
+        starts_at = excluded.starts_at,
+        expires_at = excluded.expires_at,
+        is_active = 1,
+        updated_at = excluded.updated_at,
+        updated_by = excluded.updated_by
+    `).bind(
+      className,
+      codeHash,
+      startsAt,
+      expiresAt,
+      timestamp,
+      timestamp,
+      auth.account.id,
+      auth.account.id
+    )
+  ];
+
+  if (revokeSessions) {
+    statements.push(
+      env.DB.prepare(`
+        UPDATE pm_class_access_sessions
+        SET revoked_at = ?
+        WHERE class_name = ? AND revoked_at IS NULL
+      `).bind(timestamp, className)
+    );
+  }
+
+  try {
+    await env.DB.batch(statements);
+  } catch (error) {
+    console.error('Save class access code failed:', error);
+
+    return json({
+      message: 'Kode gagal disimpan. Pastikan kode tidak digunakan oleh kelas lain.'
+    }, 409);
+  }
+
+  return json({
+    message: `Kode akses kelas ${className} berhasil disimpan.`,
+    class_name: className,
+    sessions_revoked: revokeSessions
+  });
+}
+
+async function adminSetClassAccessCodeStatus(request, env) {
+  const auth = await requireSuperAdmin(request, env);
+  if (auth.error) return auth.error;
+
+  const data = await request.json().catch(() => ({}));
+  const className = String(data.class_name || '').trim();
+
+  const active =
+    data.is_active === true || data.is_active === 1 ? 1 :
+    data.is_active === false || data.is_active === 0 ? 0 :
+    null;
+
+  if (!PROMED_CLASSES.includes(className) || active === null) {
+    return json({ message: 'Kelas atau status tidak valid.' }, 400);
+  }
+
+  const existing = await env.DB.prepare(`
+    SELECT class_name FROM pm_class_access_codes
+    WHERE class_name = ?
+  `).bind(className).first();
+
+  if (!existing) {
+    return json({ message: 'Kode akses kelas belum dibuat.' }, 404);
+  }
+
+  const statements = [
+    env.DB.prepare(`
+      UPDATE pm_class_access_codes
+      SET is_active = ?, updated_at = ?, updated_by = ?
+      WHERE class_name = ?
+    `).bind(active, now(), auth.account.id, className)
+  ];
+
+  if (active === 0 && data.revoke_sessions === true) {
+    statements.push(
+      env.DB.prepare(`
+        UPDATE pm_class_access_sessions
+        SET revoked_at = ?
+        WHERE class_name = ? AND revoked_at IS NULL
+      `).bind(now(), className)
+    );
+  }
+
+  await env.DB.batch(statements);
+
+  return json({
+    message: active
+      ? `Kode kelas ${className} berhasil diaktifkan.`
+      : `Kode kelas ${className} berhasil dinonaktifkan.`
+  });
+}
+
+async function adminDeleteClassAccessCode(request, env) {
+  const auth = await requireSuperAdmin(request, env);
+  if (auth.error) return auth.error;
+
+  const data = await request.json().catch(() => ({}));
+  const className = String(data.class_name || '').trim();
+
+  if (!PROMED_CLASSES.includes(className)) {
+    return json({ message: 'Kelas tidak valid.' }, 400);
+  }
+
+  const existing = await env.DB.prepare(`
+    SELECT class_name FROM pm_class_access_codes
+    WHERE class_name = ?
+  `).bind(className).first();
+
+  if (!existing) {
+    return json({ message: 'Kode akses kelas tidak ditemukan.' }, 404);
+  }
+
+  const statements = [];
+
+  if (data.revoke_sessions === true) {
+    statements.push(
+      env.DB.prepare(`
+        UPDATE pm_class_access_sessions
+        SET revoked_at = ?
+        WHERE class_name = ? AND revoked_at IS NULL
+      `).bind(now(), className)
+    );
+  }
+
+  statements.push(
+    env.DB.prepare(`
+      DELETE FROM pm_class_access_codes
+      WHERE class_name = ?
+    `).bind(className)
+  );
+
+  await env.DB.batch(statements);
+
+  return json({
+    message: `Kode akses kelas ${className} berhasil dihapus.`
+  });
+}
+
 async function adminListAccounts(request, env) {
   const auth = await requireSuperAdmin(request, env);
   if (auth.error) return auth.error;
@@ -1978,6 +2445,42 @@ export default {
 }
       if(p==='/api/health')return json({ok:true,service:'ProMed Hub Staging'});
       if(request.method==='GET'&&p==='/api/classes')return json({items:PROMED_CLASSES.map(name=>({name,label:`Kelas ${name}`}))});
+
+if (
+  request.method === 'GET' &&
+  p === '/api/class-access'
+) {
+  const access = await getStudentClassAccess(request, env);
+
+  if (!access) {
+    return json({
+      authenticated: false,
+      class_name: null
+    }, 200, {
+      'Set-Cookie': clearClassAccessCookie(request)
+    });
+  }
+
+  return json({
+    authenticated: true,
+    class_name: access.class_name
+  });
+}
+
+if (
+  request.method === 'POST' &&
+  p === '/api/class-access/activate'
+) {
+  return activateStudentClassAccess(request, env);
+}
+
+if (
+  request.method === 'POST' &&
+  p === '/api/class-access/logout'
+) {
+  return logoutStudentClassAccess(request, env);
+}
+
       if(request.method==='POST'&&p==='/api/login')return json({message:'Login mahasiswa sudah dinonaktifkan. Website dapat diakses langsung.'},410);
       if (request.method === 'GET' && p === '/api/admin/setup-status') return adminSetupStatus(env);
       if (request.method === 'POST' && p === '/api/admin/bootstrap') return bootstrapSuperAdmin(request, env);
@@ -2014,6 +2517,35 @@ export default {
       if (request.method === 'POST' && p === '/api/admin/change-password') {
         return adminChangeOwnPassword(request, env);
       }
+
+if (
+  request.method === 'GET' &&
+  p === '/api/admin/class-access-codes'
+) {
+  return adminListClassAccessCodes(request, env);
+}
+
+if (
+  request.method === 'POST' &&
+  p === '/api/admin/class-access-codes'
+) {
+  return adminUpsertClassAccessCode(request, env);
+}
+
+if (
+  request.method === 'PATCH' &&
+  p === '/api/admin/class-access-codes/status'
+) {
+  return adminSetClassAccessCodeStatus(request, env);
+}
+
+if (
+  request.method === 'DELETE' &&
+  p === '/api/admin/class-access-codes'
+) {
+  return adminDeleteClassAccessCode(request, env);
+}
+
       if (request.method === 'GET' && p === '/api/admin/accounts') {
         return adminListAccounts(request, env);
       }
@@ -2163,7 +2695,7 @@ if (
     env,
     Number(p.split('/')[3])
   );
-} 
+}
       return env.ASSETS.fetch(request);
     } catch (err) {
       console.error(err);
