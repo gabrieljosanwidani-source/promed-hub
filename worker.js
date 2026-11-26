@@ -2443,7 +2443,7 @@ export default {
 
   return openMaterialFile(request, env, id);
 }
-      if(p==='/api/health')return json({ok:true,service:'ProMed Hub Staging'});
+      if(p==='/api/health')return json({ok:true,service:'ProMed Hub'});
       if(request.method==='GET'&&p==='/api/classes')return json({items:PROMED_CLASSES.map(name=>({name,label:`Kelas ${name}`}))});
 
 if (

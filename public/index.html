@@ -2505,46 +2505,6 @@ body.admin .nav button.admin-only { display: flex; }
   </div>
 </div>
 
-
-<div class="card" id="classAccessManagementCard"
-     style="margin-top:15px;display:none">
-  <div class="section-head">
-    <div>
-      <h3>Manajemen Kode Akses Kelas</h3>
-      <p>Buat, perbarui, dan atur masa berlaku kode setiap kelas.</p>
-    </div>
-    <button class="btn soft" onclick="loadClassAccessCodes()">
-      ↻ Refresh Kode
-    </button>
-  </div>
-
-  <div class="note" style="margin-bottom:14px">
-    Kode akses hanya dapat dikelola oleh Super Admin.
-    Kode asli tidak ditampilkan kembali setelah disimpan.
-  </div>
-
-  <div class="table-wrap">
-    <table class="table">
-      <thead>
-        <tr>
-          <th>Kelas</th>
-          <th>Status</th>
-          <th>Masa Berlaku</th>
-          <th>Sesi Aktif</th>
-          <th>Aksi</th>
-        </tr>
-      </thead>
-      <tbody id="classAccessCodesTable">
-        <tr>
-          <td colspan="5" class="empty">
-            Memuat kode akses kelas...
-          </td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-</div>
-
 <div class="page-section-head admin-overview-heading">
     <div class="dashboard-section-heading">
       <span class="dashboard-section-icon page-heading-icon"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="m7 14 4-4 3 3 6-7"/></svg></span>
